@@ -1,0 +1,115 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model User {
+  id               String            @id
+  email            String            @unique
+  fullName         String?
+  avatarUrl        String?
+  subscriptionTier SubscriptionTier  @default(FREE)
+  stripeCustomerId String?           @unique
+  stripePriceId    String?
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  
+  analyses         JobAnalysis[]
+  savedJobs        SavedJob[]
+  apiKeys          ApiKey[]
+
+  @@map("users")
+}
+
+model ApiKey {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  name      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  expiresAt DateTime?
+
+  @@map("api_keys")
+}
+
+model JobAnalysis {
+  id               String             @id @default(uuid())
+  jobIdExternal    String?
+  jobTitle         String
+  companyName      String
+  companyUrl       String?
+  jobLocation      String?
+  jobDescription   String             @db.Text
+  postedTimeText   String?
+  trustScore       Int
+  riskLevel        RiskLevel
+  aiExplanation    String             @db.Text
+  safetyRecs       String[]
+  rawPromptTokens  Int?
+  rawCompletionTokens Int?
+  createdAt        DateTime           @default(now())
+
+  userId           String
+  user             User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  indicators       SuspiciousIndicator[]
+  verifications    CompanyVerification[]
+
+  @@index([jobIdExternal])
+  @@index([userId])
+  @@map("job_analyses")
+}
+
+model SuspiciousIndicator {
+  id             String      @id @default(uuid())
+  analysisId     String
+  analysis       JobAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  category       String
+  description    String      @db.Text
+  severity       RiskLevel
+
+  @@map("suspicious_indicators")
+}
+
+model CompanyVerification {
+  id             String      @id @default(uuid())
+  analysisId     String
+  analysis       JobAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+  signalName     String
+  description    String      @db.Text
+  isVerified     Boolean     @default(false)
+
+  @@map("company_verifications")
+}
+
+model SavedJob {
+  id             String      @id @default(uuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  jobIdExternal  String
+  jobTitle       String
+  companyName    String
+  trustScore     Int
+  riskLevel      RiskLevel
+  savedAt        DateTime    @default(now())
+
+  @@unique([userId, jobIdExternal])
+  @@map("saved_jobs")
+}

@@ -1,0 +1,14 @@
+{
+  "name": "verihire-workspace",
+  "private": true,
+  "workspaces": [
+    "web",
+    "extension"
+  ],
+  "scripts": {
+    "dev:web": "npm run dev -w web",
+    "dev:ext": "npm run dev -w extension",
+    "build:web": "npm run build -w web",
+    "build:ext": "npm run build -w extension"
+  }
+}
