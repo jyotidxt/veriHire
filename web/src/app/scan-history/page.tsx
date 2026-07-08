@@ -9,8 +9,19 @@ import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Search, ShieldAlert, ArrowUpRight, CheckCircle2 } from "lucide-react";
 
+import { useAuth } from "@/hooks/useAuth";
+
 export default function ScanHistoryPage() {
+  const { user, loading } = useAuth();
   const [selectedScan, setSelectedScan] = useState<any>(null);
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-sm text-slate-500 animate-pulse">Verifying secure session...</div>
+      </div>
+    );
+  }
 
   const history = [
     {

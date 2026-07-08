@@ -4,10 +4,12 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { Shield, Moon, Sun, Menu, X, ArrowRight } from "lucide-react";
 import { Button } from "./ui/button";
+import { useAuth } from "@/hooks/useAuth";
 
 export const Navbar: React.FC = () => {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const { user, logoutSession } = useAuth(false);
 
   useEffect(() => {
     // Sync initial state with document class
@@ -64,16 +66,27 @@ export const Navbar: React.FC = () => {
               {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-indigo-500" />}
             </Button>
 
-            <Link href="/login">
-              <Button variant="ghost" size="sm">Sign In</Button>
-            </Link>
-            
-            <Link href="/register">
-              <Button variant="primary" size="sm" className="gap-1">
-                Get Started
-                <ArrowRight className="w-3.5 h-3.5" />
-              </Button>
-            </Link>
+            {user ? (
+              <div className="flex items-center gap-3">
+                <span className="text-xs text-slate-500 font-medium">Hello, {user.name}</span>
+                <Button variant="ghost" size="sm" onClick={logoutSession} className="text-rose-500 hover:bg-rose-500/10">
+                  Sign Out
+                </Button>
+              </div>
+            ) : (
+              <>
+                <Link href="/login">
+                  <Button variant="ghost" size="sm">Sign In</Button>
+                </Link>
+                
+                <Link href="/register">
+                  <Button variant="primary" size="sm" className="gap-1">
+                    Get Started
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -107,12 +120,20 @@ export const Navbar: React.FC = () => {
             Settings
           </Link>
           <div className="pt-2 border-t border-slate-200 dark:border-slate-800 flex flex-col gap-2">
-            <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="w-full">
-              <Button variant="outline" className="w-full">Sign In</Button>
-            </Link>
-            <Link href="/register" onClick={() => setIsMobileMenuOpen(false)} className="w-full">
-              <Button variant="primary" className="w-full">Get Started</Button>
-            </Link>
+            {user ? (
+              <Button variant="outline" onClick={() => { setIsMobileMenuOpen(false); logoutSession(); }} className="w-full text-rose-500 hover:bg-rose-500/10 border-rose-500/20">
+                Sign Out
+              </Button>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setIsMobileMenuOpen(false)} className="w-full">
+                  <Button variant="outline" className="w-full">Sign In</Button>
+                </Link>
+                <Link href="/register" onClick={() => setIsMobileMenuOpen(false)} className="w-full">
+                  <Button variant="primary" className="w-full">Get Started</Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

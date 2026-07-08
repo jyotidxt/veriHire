@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
 import { Loader } from "@/components/ui/loader";
+import { useAuth } from "@/hooks/useAuth";
 import {
   Briefcase,
   Calendar,
@@ -48,6 +49,7 @@ export default function SavedJobsPage() {
   const [loading, setLoading] = useState(true);
   const [selectedApp, setSelectedApp] = useState<Application | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const { user, loading: authLoading, getAuthHeaders } = useAuth();
   
   // Edit Form Fields State
   const [editNotes, setEditNotes] = useState("");
@@ -57,7 +59,9 @@ export default function SavedJobsPage() {
   const fetchApplications = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/applications");
+      const res = await fetch("/api/applications", {
+        headers: getAuthHeaders()
+      });
       const data = await res.json();
       if (res.ok && data.success && data.data.length > 0) {
         setApplications(data.data);
@@ -138,9 +142,9 @@ export default function SavedJobsPage() {
     setIsEditModalOpen(false);
 
     try {
-      await fetch("//api/applications", {
+      await fetch("/api/applications", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           id: selectedApp.id,
           status: editStatus,
@@ -160,7 +164,8 @@ export default function SavedJobsPage() {
 
     try {
       await fetch(`/api/applications?id=${id}`, {
-        method: "DELETE"
+        method: "DELETE",
+        headers: getAuthHeaders()
       });
     } catch (err) {
       console.warn("VeriHire: Database offline, deletion preserved client-side.");
@@ -181,7 +186,7 @@ export default function SavedJobsPage() {
     try {
       await fetch("/api/applications", {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           id: app.id,
           status: newStatus
@@ -191,6 +196,14 @@ export default function SavedJobsPage() {
       console.warn("VeriHire: Status updated client-side.");
     }
   };
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-sm text-slate-500 animate-pulse">Verifying secure session...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

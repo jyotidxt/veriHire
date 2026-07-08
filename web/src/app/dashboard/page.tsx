@@ -7,12 +7,24 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Shield, Sparkles, TrendingUp, AlertTriangle, ArrowUpRight } from "lucide-react";
 
+import { useAuth } from "@/hooks/useAuth";
+
 export default function DashboardPage() {
+  const { user, loading } = useAuth();
+
   const recentScans = [
     { id: "1", title: "Remote QA Analyst", company: "Secure-Logistics Ltd.", score: 32, risk: "HIGH", date: "July 7, 2026" },
     { id: "2", title: "Junior Frontend Dev", company: "Novus Web Agency", score: 94, risk: "LOW", date: "July 6, 2026" },
     { id: "3", title: "Data Entry Operator", company: "Global Apex Outsourcing", score: 55, risk: "MEDIUM", date: "July 5, 2026" },
   ];
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-sm text-slate-500 animate-pulse">Verifying secure session...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -24,7 +36,7 @@ export default function DashboardPage() {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight">Overview</h1>
-              <p className="text-sm text-slate-500">Monitor your scans and safe applying metrics.</p>
+              <p className="text-sm text-slate-500">Welcome back, {user.name}! Monitor your scans and safe applying metrics.</p>
             </div>
             <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg glass-panel text-xs text-slate-600 dark:text-slate-300">
               <Sparkles className="w-3.5 h-3.5 text-brand-violet" />

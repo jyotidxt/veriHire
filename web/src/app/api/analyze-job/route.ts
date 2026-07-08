@@ -223,11 +223,16 @@ ${jobDescription}`;
 
     // 4. Log to Database (wrapped in try-catch fallback)
     try {
-      let activeUserId = "system_default_user";
+      let activeUserId = req.headers.get("x-user-id") || "system_default_user";
+      let activeUserEmail = req.headers.get("x-user-email") || "system@verihire.app";
+      let activeUserName = req.headers.get("x-user-name") || "System Default";
+
       try {
         const authSession = auth();
         if (authSession && authSession.userId) {
           activeUserId = authSession.userId;
+          activeUserEmail = "user@verihire.app";
+          activeUserName = "Active User";
         }
       } catch (authErr) {
         // No Clerk context in direct API REST calls
@@ -238,8 +243,8 @@ ${jobDescription}`;
         update: {},
         create: {
           id: activeUserId,
-          email: activeUserId === "system_default_user" ? "system@verihire.app" : "user@verihire.app",
-          fullName: activeUserId === "system_default_user" ? "System Default" : "Active User",
+          email: activeUserEmail,
+          fullName: activeUserName,
           subscriptionTier: "FREE"
         }
       });

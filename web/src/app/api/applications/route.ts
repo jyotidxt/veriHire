@@ -3,9 +3,9 @@ import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 
 // GET: Query all tracked job applications
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    let activeUserId = "system_default_user";
+    let activeUserId = req.headers.get("x-user-id") || "system_default_user";
     try {
       const authSession = auth();
       if (authSession && authSession.userId) {

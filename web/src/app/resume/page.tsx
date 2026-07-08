@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Loader } from "@/components/ui/loader";
 import { FileText, Sparkles, AlertCircle, ArrowUpRight, UploadCloud, CheckCircle } from "lucide-react";
 
+import { useAuth } from "@/hooks/useAuth";
+
 export default function ResumePage() {
   const [resumeText, setResumeText] = useState("");
   const [jobDescription, setJobDescription] = useState("");
@@ -15,6 +17,7 @@ export default function ResumePage() {
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const { user, loading: authLoading, getAuthHeaders } = useAuth();
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -57,7 +60,8 @@ export default function ResumePage() {
       const response = await fetch("/api/analyze-resume", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
+          ...getAuthHeaders()
         },
         body: JSON.stringify({ resumeText, jobDescription })
       });
@@ -75,6 +79,14 @@ export default function ResumePage() {
       setError("Failed to connect to the backend server.");
     }
   };
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-sm text-slate-500 animate-pulse">Verifying secure session...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">

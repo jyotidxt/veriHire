@@ -9,9 +9,20 @@ import { Badge } from "@/components/ui/badge";
 import { Sparkles, Key, CreditCard, Shield, Copy, Check } from "lucide-react";
 
 
+import { useAuth } from "@/hooks/useAuth";
+
 export default function SettingsPage() {
+  const { user, loading } = useAuth();
   const [copiedKey, setCopiedKey] = useState(false);
   const apiKeyMock = "vh_live_4a79c938b827cdb4e09f58e1c6";
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-sm text-slate-500 animate-pulse">Verifying secure session...</div>
+      </div>
+    );
+  }
 
   const handleCopyKey = () => {
     navigator.clipboard.writeText(apiKeyMock);
