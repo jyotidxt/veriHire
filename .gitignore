@@ -7,12 +7,12 @@ node_modules
 /coverage
 
 # Next.js
-/.next/
-/out/
+.next/
+out/
 
 # Production
-/build
-/dist
+build/
+dist/
 
 # Debug logs
 npm-debug.log*

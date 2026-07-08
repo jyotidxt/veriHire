@@ -225,19 +225,76 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           return;
         }
 
-        // 4. Run heuristic analysis on extracted details
-        try {
-          const analysisResult = evaluateJobHeuristically(response.data);
-          sendResponse({
-            success: true,
-            data: analysisResult
+        // 4. Send scraped details to Next.js API backend (with local fallback if server is offline)
+        const scrapedData = response.data;
+        
+        fetch("http://localhost:3000/api/analyze-job", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            title: scrapedData.jobTitle,
+            company: scrapedData.companyName,
+            description: scrapedData.jobDescription,
+            location: scrapedData.jobLocation,
+            url: scrapedData.jobUrl
+          })
+        })
+          .then((res) => {
+            if (!res.ok) {
+              throw new Error(`API server returned error status: ${res.status}`);
+            }
+            return res.json();
+          })
+          .then((apiResult) => {
+            sendResponse({
+              success: true,
+              data: {
+                jobDetails: {
+                  jobTitle: scrapedData.jobTitle,
+                  companyName: scrapedData.companyName,
+                  jobLocation: scrapedData.jobLocation,
+                  employmentType: scrapedData.employmentType,
+                  experienceLevel: scrapedData.experienceLevel,
+                  skills: scrapedData.skills,
+                  jobUrl: scrapedData.jobUrl
+                },
+                trustScore: apiResult.trustScore,
+                riskLevel: apiResult.riskLevel,
+                aiExplanation: apiResult.explanation || "Analysis details processed by AI engine.",
+                companyVerificationSignals: (apiResult.signals || []).map((s: any) => ({
+                  signalName: s.name || s.signalName || "Signal Check",
+                  description: s.description || "",
+                  isVerified: s.verified ?? s.isVerified ?? true
+                })),
+                suspiciousIndicators: (apiResult.concerns || []).map((c: any) => ({
+                  category: c.category || "Warning",
+                  description: c.description || "",
+                  severity: c.severity || "MEDIUM"
+                })),
+                safetyRecommendations: apiResult.recommendation || []
+              }
+            });
+          })
+          .catch((fetchErr) => {
+            console.warn(
+              "VeriHire Extension: Next.js API server offline. Falling back to local client-side evaluation.",
+              fetchErr
+            );
+            try {
+              const localResult = evaluateJobHeuristically(scrapedData);
+              sendResponse({
+                success: true,
+                data: localResult
+              });
+            } catch (err: any) {
+              sendResponse({
+                success: false,
+                error: err.message || "An error occurred during evaluation."
+              });
+            }
           });
-        } catch (err: any) {
-          sendResponse({
-            success: false,
-            error: err.message || "An error occurred during evaluation."
-          });
-        }
       });
     });
 
