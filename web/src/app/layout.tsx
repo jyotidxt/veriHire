@@ -13,15 +13,24 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   // Safe fallback if Clerk envs are not yet set, letting the app compile and run locally.
-  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || "pk_test_placeholder_key";
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || "";
+  const isClerkReady = publishableKey && publishableKey.length > 30 && !publishableKey.includes("placeholder");
 
-  return (
-    <ClerkProvider publishableKey={publishableKey}>
-      <html lang="en" className="dark">
-        <body className="antialiased bg-background-light dark:bg-background-dark min-h-screen text-slate-900 dark:text-slate-100 font-sans">
-          {children}
-        </body>
-      </html>
-    </ClerkProvider>
+  const content = (
+    <html lang="en" className="dark">
+      <body className="antialiased bg-background-light dark:bg-background-dark min-h-screen text-slate-900 dark:text-slate-100 font-sans">
+        {children}
+      </body>
+    </html>
   );
+
+  if (isClerkReady) {
+    return (
+      <ClerkProvider publishableKey={publishableKey}>
+        {content}
+      </ClerkProvider>
+    );
+  }
+
+  return content;
 }
