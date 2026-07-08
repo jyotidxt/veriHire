@@ -53,7 +53,7 @@ export function useAuth(required = true) {
     router.push("/login");
   };
 
-  const getAuthHeaders = () => {
+  const getAuthHeaders = (): Record<string, string> => {
     if (!user) return {};
     return {
       "x-user-id": user.id,
