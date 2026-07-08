@@ -50,6 +50,9 @@ export const Navbar: React.FC = () => {
             <Link href="/saved-jobs" className="text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
               Saved Jobs
             </Link>
+            <Link href="/resume" className="text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
+              Resume Match
+            </Link>
             <Link href="/settings" className="text-sm text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white transition-colors">
               Settings
             </Link>
@@ -96,6 +99,9 @@ export const Navbar: React.FC = () => {
           </Link>
           <Link href="/saved-jobs" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-slate-600 dark:text-slate-300">
             Saved Jobs
+          </Link>
+          <Link href="/resume" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-slate-600 dark:text-slate-300">
+            Resume Match
           </Link>
           <Link href="/settings" onClick={() => setIsMobileMenuOpen(false)} className="block py-2 text-slate-600 dark:text-slate-300">
             Settings
