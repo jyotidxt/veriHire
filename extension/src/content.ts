@@ -419,13 +419,156 @@ function injectFloatingUI() {
   `;
   shadowRoot.appendChild(drawer);
 
+  // Helper to extract text cleanly with selectors list
+  function extractText(selectors: string[]): string {
+    for (const selector of selectors) {
+      // In normal browser environment
+      const el = document.querySelector(selector);
+      if (el) {
+        const text = el.textContent?.trim();
+        if (text) return text;
+      }
+    }
+    return "";
+  }
+
+  // Helper to extract job insights (Employment Type, Experience, Skills)
+  function parseJobInsights(): {
+    employmentType: string;
+    experienceLevel: string;
+    skills: string[];
+  } {
+    const insights = document.querySelectorAll(
+      ".jobs-unified-top-card__job-insight, .job-details-jobs-unified-top-card__job-insight, .description__job-criteria-text"
+    );
+    
+    let employmentType = "";
+    let experienceLevel = "";
+    const skills: string[] = [];
+
+    insights.forEach((insight) => {
+      const text = insight.textContent?.trim() || "";
+      
+      if (text.includes("·")) {
+        const parts = text.split("·").map((p) => p.trim());
+        parts.forEach((part) => {
+          const lower = part.toLowerCase();
+          if (
+            lower.includes("full-time") ||
+            lower.includes("part-time") ||
+            lower.includes("contract") ||
+            lower.includes("temporary") ||
+            lower.includes("internship")
+          ) {
+            employmentType = part;
+          } else if (
+            lower.includes("entry level") ||
+            lower.includes("mid-senior") ||
+            lower.includes("associate") ||
+            lower.includes("director") ||
+            lower.includes("executive") ||
+            lower.includes("no experience")
+          ) {
+            experienceLevel = part;
+          }
+        });
+      } else {
+        const lower = text.toLowerCase();
+        if (
+          lower.includes("full-time") ||
+          lower.includes("part-time") ||
+          lower.includes("contract") ||
+          lower.includes("temporary")
+        ) {
+          employmentType = text;
+        } else if (
+          lower.includes("entry level") ||
+          lower.includes("mid-senior") ||
+          lower.includes("associate") ||
+          lower.includes("director") ||
+          lower.includes("no experience")
+        ) {
+          experienceLevel = text;
+        }
+      }
+
+      if (text.toLowerCase().includes("skills") || text.toLowerCase().includes("skills:")) {
+        const cleanSkills = text.replace(/(Skills:|skills:)/i, "").trim();
+        cleanSkills.split(",").forEach((skill) => {
+          const trimmed = skill.trim();
+          if (trimmed) skills.push(trimmed);
+        });
+      }
+    });
+
+    return { employmentType, experienceLevel, skills };
+  }
+
+  // Master scraper function extracting all 8 parameters
+  function scrapeJobPage() {
+    const title = extractText([
+      ".job-details-jobs-unified-top-card__job-title",
+      ".jobs-unified-top-card__job-title",
+      ".jobs-unified-top-card__job-title-link",
+      "h1.t-24",
+      ".jobs-search-jobs-unified-top-card__job-title-link",
+      ".top-card-layout__title"
+    ]);
+
+    const company = extractText([
+      ".jobs-unified-top-card__company-name",
+      ".job-details-jobs-unified-top-card__company-name",
+      ".jobs-unified-top-card__company-name-link",
+      ".jobs-unified-top-card__company-name a",
+      ".topcard__org-name-link",
+      ".top-card-layout__card .top-card-layout__first-subline a"
+    ]);
+
+    const location = extractText([
+      ".jobs-unified-top-card__bullet",
+      ".jobs-unified-top-card__bullet-point",
+      ".job-details-jobs-unified-top-card__bullet",
+      ".jobs-unified-top-card__bullet-point-container",
+      ".topcard__flavor--bullet",
+      ".top-card-layout__card .top-card-layout__first-subline span:nth-child(2)"
+    ]);
+
+    const description = extractText([
+      "#job-details",
+      ".jobs-description__content",
+      ".jobs-description-content__text",
+      ".jobs-box__html-content",
+      ".description__text"
+    ]);
+
+    const insights = parseJobInsights();
+
+    // Dynamically query for skills buttons if any exist on the page
+    const skillsList: string[] = [...insights.skills];
+    document.querySelectorAll(".app-shared-outline-pill").forEach((pill) => {
+      const txt = pill.textContent?.trim();
+      if (txt && !skillsList.includes(txt)) skillsList.push(txt);
+    });
+
+    return {
+      jobTitle: title || "Unavailable",
+      companyName: company || "Unavailable",
+      jobLocation: location || "Unavailable",
+      jobDescription: description || "Unavailable",
+      employmentType: insights.employmentType || "Not Specified",
+      experienceLevel: insights.experienceLevel || "Not Specified",
+      skills: skillsList.length > 0 ? skillsList : ["Not Specified"],
+      jobUrl: window.location.href
+    };
+  }
+
   // Set up event listeners
   const closeBtn = drawer.querySelector(".vh-close-btn");
   const saveBtn = drawer.querySelector("#vh-save-btn");
 
   bubble.addEventListener("click", () => {
     // 1. Scrape real job metadata from active page content
-    const scraped = parseLinkedInPage();
+    const scraped = scrapeJobPage();
     
     // 2. Update drawer elements with real scraped details
     const titleEl = drawer.querySelector("#vh-job-title");
@@ -435,15 +578,17 @@ function injectFloatingUI() {
     const badgeEl = drawer.querySelector("#vh-risk-badge");
     const explanationEl = drawer.querySelector("#vh-explanation-text");
 
-    if (titleEl) titleEl.textContent = scraped.title;
-    if (companyEl) companyEl.textContent = scraped.company;
-    if (locationEl) locationEl.textContent = scraped.location;
+    if (titleEl) titleEl.textContent = scraped.jobTitle;
+    if (companyEl) companyEl.textContent = scraped.companyName;
+    if (locationEl) locationEl.textContent = scraped.jobLocation;
 
     // Simulate simple heuristic evaluation to populate scores dynamically
     const isSuspicious =
-      scraped.title.toLowerCase().includes("data entry") ||
-      scraped.company.toLowerCase().includes("freelance") ||
-      document.body.innerText.toLowerCase().includes("telegram");
+      scraped.jobTitle.toLowerCase().includes("data entry") ||
+      scraped.companyName.toLowerCase().includes("freelance") ||
+      scraped.jobDescription.toLowerCase().includes("telegram") ||
+      scraped.jobDescription.toLowerCase().includes("whatsapp") ||
+      scraped.jobDescription.toLowerCase().includes("purchase");
 
     if (isSuspicious) {
       if (scoreTextEl) {
@@ -455,7 +600,7 @@ function injectFloatingUI() {
         badgeEl.className = "vh-badge high";
       }
       if (explanationEl) {
-        explanationEl.textContent = "Description contains warning parameters (e.g. high pay for simple task). Exercise caution.";
+        explanationEl.textContent = "Description contains warning parameters (e.g. chat redirects or upfront startup cost terms). Exercise caution.";
       }
     } else {
       if (scoreTextEl) {
@@ -473,7 +618,7 @@ function injectFloatingUI() {
 
     // Toggle saved button state depending on active job title
     if (saveBtn) {
-      const jobKey = `${scraped.title}-${scraped.company}`;
+      const jobKey = `${scraped.jobTitle}-${scraped.companyName}`;
       if (savedJobsList.includes(jobKey)) {
         saveBtn.textContent = "Job Saved";
         saveBtn.className = "vh-btn vh-btn-saved";
@@ -492,8 +637,8 @@ function injectFloatingUI() {
   });
 
   saveBtn?.addEventListener("click", () => {
-    const scraped = parseLinkedInPage();
-    const jobKey = `${scraped.title}-${scraped.company}`;
+    const scraped = scrapeJobPage();
+    const jobKey = `${scraped.jobTitle}-${scraped.companyName}`;
     
     if (!savedJobsList.includes(jobKey)) {
       savedJobsList.push(jobKey);
@@ -503,6 +648,25 @@ function injectFloatingUI() {
       }
       console.log("VeriHire: Saved job listing locally", scraped);
     }
+  });
+
+  // Listener for messages from background script
+  chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
+    if (request.action === "EXTRACT_JOB_DETAILS") {
+      try {
+        const scraped = scrapeJobPage();
+        sendResponse({
+          success: true,
+          data: scraped
+        });
+      } catch (err: any) {
+        sendResponse({
+          success: false,
+          error: err.message || "Failed to extract page content."
+        });
+      }
+    }
+    return true;
   });
 }
 
@@ -523,23 +687,3 @@ mutationObserver.observe(document.body, { childList: true, subtree: true });
 // Run initial evaluation on load
 handlePageUpdates();
 
-// Listener for messages from background script
-chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-  if (request.action === "EXTRACT_JOB_DETAILS") {
-    const scraped = parseLinkedInPage();
-    sendResponse({
-      success: true,
-      data: {
-        jobTitle: scraped.title,
-        companyName: scraped.company,
-        jobLocation: scraped.location,
-        jobDescription: document.body.innerText.substring(0, 1000), // fallback text chunk
-        employmentType: "Full-time",
-        experienceLevel: "Mid-Senior level",
-        skills: ["Scraped"],
-        jobUrl: window.location.href
-      }
-    });
-  }
-  return true;
-});
