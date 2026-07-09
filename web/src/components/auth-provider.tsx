@@ -160,24 +160,8 @@ function LocalAuthInner({ children, required }: { children: React.ReactNode; req
 
 // Main Selector wrapper determining dynamic auth context layout structures
 export function VeriHireAuthProvider({ children, required = true }: { children: React.ReactNode; required?: boolean }) {
-  const [isClerkReady, setIsClerkReady] = useState(false);
-  const [checking, setChecking] = useState(true);
-
-  useEffect(() => {
-    const key = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || "";
-    // Verify key format length and base64 patterns to distinguish from placeholders
-    const ready = key && key.length > 30 && !key.includes("placeholder") && !key.includes("Y2xlYW4tc2Fhcy04MC");
-    setIsClerkReady(!!ready);
-    setChecking(false);
-  }, []);
-
-  if (checking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-sm text-slate-500 animate-pulse">Verifying secure portal...</div>
-      </div>
-    );
-  }
+  const key = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || "";
+  const isClerkReady = !!(key && key.length > 30 && !key.includes("placeholder") && !key.includes("Y2xlYW4tc2Fhcy04MC"));
 
   if (isClerkReady) {
     return <ClerkAuthInner required={required}>{children}</ClerkAuthInner>;

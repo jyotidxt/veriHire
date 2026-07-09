@@ -457,80 +457,65 @@ const SHADOW_CSS = `
 
 
 function calculateDemoConfidence(scraped: any) {
-  let score = 50; // base score
+  let score = 40; // base score
   const checks: { label: string; value: string; pass: boolean }[] = [];
 
-  const jobTitle = scraped?.jobTitle || "";
   const companyName = scraped?.companyName || "";
   const jobLocation = scraped?.jobLocation || "";
   const jobDescription = scraped?.jobDescription || "";
   const employmentType = scraped?.employmentType || "";
-  const skills = scraped?.skills || [];
+  const workplaceType = scraped?.workplaceType || "";
   const experienceLevel = scraped?.experienceLevel || "";
-  const jobUrl = scraped?.jobUrl || "";
+  const salary = scraped?.salary || "";
+  const skills = scraped?.skills || [];
+  const applyUrl = scraped?.applyUrl || "";
+  const companyWebsite = scraped?.companyWebsite || "";
 
   // 1. Company detected
-  const hasCompany = companyName && companyName !== "Unavailable" && companyName !== "Hiring Company" && companyName !== "Company not detected";
-  score += hasCompany ? 5 : 0;
-  checks.push({ label: "Company Detected", value: hasCompany ? companyName : "Missing", pass: hasCompany });
+  const hasCompany = companyName && companyName !== "Unavailable" && companyName !== "Not Available" && companyName !== "Company not detected";
+  score += hasCompany ? 10 : 0;
+  checks.push({ label: "Company Detected", value: hasCompany ? companyName : "Not Available", pass: hasCompany });
 
-  // 2. Job title
-  const hasTitle = jobTitle && jobTitle !== "Unavailable" && jobTitle !== "Software Developer" && jobTitle !== "Job title not detected";
-  score += hasTitle ? 5 : 0;
-  checks.push({ label: "Job Title", value: hasTitle ? jobTitle : "Missing", pass: hasTitle });
+  // 2. HTTPS website found
+  const hasHttpsWeb = companyWebsite && companyWebsite.startsWith("https://") && companyWebsite !== "Website not specified" && companyWebsite !== "Not Available";
+  score += hasHttpsWeb ? 10 : 0;
+  checks.push({ label: "HTTPS Website Found", value: hasHttpsWeb ? companyWebsite : "Not Available", pass: hasHttpsWeb });
 
-  // 3. Location
-  const hasLocation = jobLocation && jobLocation !== "Unavailable" && jobLocation !== "Remote / Hybrid" && jobLocation !== "Location not specified";
-  score += hasLocation ? 5 : 0;
-  checks.push({ label: "Location", value: hasLocation ? jobLocation : "Missing", pass: hasLocation });
+  // 3. Remote position detected
+  const isRemote = workplaceType === "Remote" || jobLocation.toLowerCase().includes("remote");
+  score += isRemote ? 10 : 5;
+  checks.push({ label: "Remote Position Detected", value: isRemote ? "Yes" : `No (${workplaceType})`, pass: isRemote });
 
-  // 4. Employment Type
-  const hasEmpType = employmentType && employmentType !== "Not Specified" && employmentType !== "Employment type not specified";
-  score += hasEmpType ? 5 : 0;
-  checks.push({ label: "Employment Type", value: hasEmpType ? employmentType : "Not Specified", pass: hasEmpType });
-
-  // 5. Skills Detected
-  const skillsCount = skills ? skills.filter((s: string) => s !== "Not Specified").length : 0;
-  score += skillsCount > 0 ? Math.min(10, skillsCount * 2) : 0;
-  checks.push({ label: "Skills Count", value: skillsCount > 0 ? `${skillsCount} skills` : "None Detected", pass: skillsCount > 0 });
-
-  // 6. Seniority
-  const hasSeniority = experienceLevel && experienceLevel !== "Not Specified" && experienceLevel !== "Experience not specified";
-  score += hasSeniority ? 5 : 0;
-  checks.push({ label: "Seniority Level", value: hasSeniority ? experienceLevel : "Not Specified", pass: hasSeniority });
-
-  // 7. Description completeness
-  const descLength = jobDescription.length;
-  const isComplete = descLength > 800;
-  score += descLength > 1500 ? 10 : descLength > 800 ? 5 : 0;
-  checks.push({ label: "Description Length", value: `${descLength} chars`, pass: isComplete });
-
-  // 8. Salary mentioned
-  const descLower = jobDescription.toLowerCase();
-  const salaryRegex = /(\$|salary|salary range|hourly|compensation|pay rate|\d+\s*k)/i;
-  const hasSalary = salaryRegex.test(descLower) || (scraped?.salary && scraped.salary !== "Salary not disclosed");
+  // 4. Salary mentioned
+  const hasSalary = salary && salary !== "Salary not disclosed" && salary !== "Not Available";
   score += hasSalary ? 10 : 0;
-  checks.push({ label: "Salary Details", value: hasSalary ? (scraped?.salary !== "Salary not disclosed" ? scraped.salary : "Mentioned") : "Not Specified", pass: hasSalary });
+  checks.push({ label: "Salary Mentioned", value: hasSalary ? salary : "Not Available", pass: hasSalary });
 
-  // 9. External website link
-  const urlRegex = /(https?:\/\/[^\s]+)/g;
-  const urls = jobDescription.match(urlRegex) || [];
-  const hasUrl = urls.length > 0 || (scraped?.companyWebsite && scraped.companyWebsite !== "Website not specified");
-  score += hasUrl ? 5 : 0;
-  checks.push({ label: "External Website", value: hasUrl ? "Detected" : "Not Detected", pass: hasUrl });
+  // 5. Required skills count
+  const skillsCount = skills ? skills.filter((s: string) => s !== "Not Specified" && s !== "Not Available").length : 0;
+  score += skillsCount > 0 ? Math.min(10, skillsCount * 2) : 0;
+  checks.push({ label: "Required Skills Count", value: skillsCount > 0 ? `${skillsCount} skills` : "Not Available", pass: skillsCount > 0 });
 
-  // 10. Application link
-  const hasAppLink = jobUrl && jobUrl.includes("linkedin.com");
-  score += hasAppLink ? 5 : 0;
-  checks.push({ label: "Application Link", value: hasAppLink ? "Detected" : "Not Detected", pass: hasAppLink });
+  // 6. Description completeness
+  const descLength = jobDescription.length;
+  const isComplete = descLength > 1000;
+  score += descLength > 1800 ? 10 : descLength > 1000 ? 5 : 0;
+  checks.push({ label: "Description Completeness", value: isComplete ? "Complete" : "Short", pass: isComplete });
 
-  // 11. Remote/Hybrid/On-site
-  const isRemote = descLower.includes("remote") || jobLocation.toLowerCase().includes("remote");
-  const isHybrid = descLower.includes("hybrid");
-  const isOnsite = descLower.includes("on-site") || descLower.includes("onsite");
-  const mode = isRemote ? "Remote" : isHybrid ? "Hybrid" : isOnsite ? "On-site" : "Not Specified";
-  score += mode !== "Not Specified" ? 5 : 0;
-  checks.push({ label: "Workplace Mode", value: mode, pass: mode !== "Not Specified" });
+  // 7. Employment type
+  const hasEmpType = employmentType && employmentType !== "Not Specified" && employmentType !== "Not Available";
+  score += hasEmpType ? 5 : 0;
+  checks.push({ label: "Employment Type", value: hasEmpType ? employmentType : "Not Available", pass: hasEmpType });
+
+  // 8. External application link
+  const hasExternalApply = applyUrl && applyUrl.startsWith("http") && applyUrl !== "Not Available";
+  score += hasExternalApply ? 10 : 5;
+  checks.push({ label: "External Application Link", value: hasExternalApply ? "Yes" : "LinkedIn Easy Apply", pass: hasExternalApply });
+
+  // 9. Estimated seniority
+  const hasSeniority = experienceLevel && experienceLevel !== "Not Specified" && experienceLevel !== "Not Available";
+  score += hasSeniority ? 5 : 0;
+  checks.push({ label: "Estimated Seniority", value: hasSeniority ? experienceLevel : "Not Available", pass: hasSeniority });
 
   score = Math.min(100, Math.max(10, score));
 
@@ -541,6 +526,8 @@ let shadowRoot: ShadowRoot | null = null;
 let savedJobsList: string[] = [];
 let onPageMutationHook: (() => void) | null = null;
 let scrapeTimeoutId: any = null;
+let cachedScrapedData: any = null;
+let lastScrapedJobId: string | null = null;
 
 function getActiveJobContainer(): Element | Document {
   const containers = [
@@ -558,6 +545,24 @@ function getActiveJobContainer(): Element | Document {
     }
   }
   return document;
+}
+
+function getJobIdFromUrl(): string | null {
+  const url = window.location.href;
+  const match = url.match(/(?:currentJobId=|jobs\/view\/)(\d+)/i);
+  return match ? match[1] : null;
+}
+
+function getJobKey(): string {
+  const jobId = getJobIdFromUrl();
+  if (jobId) return jobId;
+  
+  const container = getActiveJobContainer();
+  const titleEl = container.querySelector(".job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title");
+  const companyEl = container.querySelector(".jobs-unified-top-card__company-name, .job-details-jobs-unified-top-card__company-name");
+  const titleText = titleEl?.textContent?.trim() || "";
+  const companyText = companyEl?.textContent?.trim() || "";
+  return `${titleText}-${companyText}`;
 }
 
 // Injects the VeriHire floating action items
@@ -834,9 +839,16 @@ function injectFloatingUI() {
   }
 
   // Master scraper function extracting all parameters with container scoping
-  function scrapeJobPage() {
+  function scrapeJobPage(forceFresh = false) {
+    const currentKey = getJobKey();
+    if (!forceFresh && lastScrapedJobId === currentKey && cachedScrapedData) {
+      console.log("VeriHire Scraper: Returning cached scraped data for", currentKey);
+      return cachedScrapedData;
+    }
+
     console.log("VeriHire Scraper: Running master job scraper...");
-    
+    const container = getActiveJobContainer();
+
     const title = extractText([
       ".job-details-jobs-unified-top-card__job-title",
       ".jobs-unified-top-card__job-title",
@@ -844,8 +856,8 @@ function injectFloatingUI() {
       "h1.t-24",
       ".jobs-search-jobs-unified-top-card__job-title-link",
       ".top-card-layout__title",
-      "h1" // Fallback scoped header
-    ]);
+      "h1"
+    ]) || "Not Available";
 
     const company = extractText([
       ".jobs-unified-top-card__company-name",
@@ -854,9 +866,20 @@ function injectFloatingUI() {
       ".jobs-unified-top-card__company-name a",
       ".topcard__org-name-link",
       ".top-card-layout__card .top-card-layout__first-subline a",
-      "a[href*='/company/']", // Target standard company links
-      ".jobs-unified-top-card__company-name"
-    ]);
+      "a[href*='/company/']"
+    ]) || "Not Available";
+
+    let companyUrl = "Not Available";
+    const companyLink = container.querySelector([
+      "a.jobs-unified-top-card__company-name-link",
+      "a[href*='/company/']"
+    ].join(", ")) as HTMLAnchorElement | null;
+    if (companyLink) {
+      companyUrl = companyLink.href;
+      if (companyUrl.startsWith("/")) {
+        companyUrl = "https://www.linkedin.com" + companyUrl;
+      }
+    }
 
     const location = extractText([
       ".jobs-unified-top-card__bullet",
@@ -866,7 +889,7 @@ function injectFloatingUI() {
       ".topcard__flavor--bullet",
       ".top-card-layout__card .top-card-layout__first-subline span:nth-child(2)",
       ".jobs-unified-top-card__primary-description span:nth-child(2)"
-    ]);
+    ]) || "Not Available";
 
     const description = extractText([
       "#job-details",
@@ -876,12 +899,112 @@ function injectFloatingUI() {
       ".description__text",
       ".jobs-description",
       ".jobs-description__container"
-    ]);
+    ]) || "Not Available";
 
     const insights = parseJobInsights();
-    const container = getActiveJobContainer();
 
-    // Dynamically query for skills buttons if any exist inside active container
+    // Workplace Type
+    let workplaceType = "Not Available";
+    const workplaceEl = container.querySelector([
+      ".jobs-unified-top-card__workplace-type",
+      ".job-details-jobs-unified-top-card__workplace-type",
+      ".top-card-layout__workplace-type"
+    ].join(", "));
+    if (workplaceEl && workplaceEl.textContent) {
+      workplaceType = workplaceEl.textContent.trim();
+    } else if (title !== "Not Available" || location !== "Not Available") {
+      const titleLower = title.toLowerCase();
+      const locLower = location.toLowerCase();
+      if (titleLower.includes("remote") || locLower.includes("remote")) {
+        workplaceType = "Remote";
+      } else if (titleLower.includes("hybrid") || locLower.includes("hybrid")) {
+        workplaceType = "Hybrid";
+      } else if (titleLower.includes("on-site") || titleLower.includes("onsite") || locLower.includes("on-site") || locLower.includes("onsite")) {
+        workplaceType = "On-site";
+      }
+    }
+
+    // Salary range lookup
+    const descText = description || "";
+    const salaryRegex = /(\$\d{2,3}(?:,\d{3})*(?:\s*-\s*\$\d{2,3}(?:,\d{3})*)?\s*(?:per\s*year|yr|hr|hour|anually|annually|a\s*year|annual)?)/i;
+    const matchSalary = descText.match(salaryRegex);
+    let salary = matchSalary ? matchSalary[1] : "";
+    if (!salary) {
+      const salEl = container.querySelector(".jobs-unified-top-card__salary-range, .salary, .job-details-jobs-unified-top-card__salary");
+      if (salEl) salary = salEl.textContent?.trim() || "";
+    }
+    salary = salary || "Not Available";
+
+    // Applicants count
+    let applicants = "Not Available";
+    const applicantEl = container.querySelector([
+      ".jobs-unified-top-card__applicant-count",
+      ".job-details-jobs-unified-top-card__applicant-count",
+      ".top-card-layout__first-subline .num-applicants",
+      ".topcard__flavor--metadata"
+    ].join(", "));
+    if (applicantEl && applicantEl.textContent) {
+      applicants = applicantEl.textContent.trim();
+    } else {
+      container.querySelectorAll("span, p, li").forEach((el) => {
+        const txt = el.textContent?.trim() || "";
+        if (txt.toLowerCase().includes("applicant") && txt.length < 50) {
+          applicants = txt;
+        }
+      });
+    }
+
+    // Hiring Team
+    let hiringTeam = "Not Available";
+    const hirerEl = container.querySelector([
+      ".jobs-poster__name",
+      ".hirer-card__name",
+      ".jobs-details-sidebar__poster-name",
+      ".jobs-poster-card__name"
+    ].join(", "));
+    if (hirerEl && hirerEl.textContent) {
+      hiringTeam = hirerEl.textContent.trim();
+      const hirerTitleEl = container.querySelector(".jobs-poster__headline, .hirer-card__headline, .jobs-poster-card__headline");
+      if (hirerTitleEl && hirerTitleEl.textContent) {
+        hiringTeam += ` (${hirerTitleEl.textContent.trim()})`;
+      }
+    }
+
+    // Benefits
+    let benefits = "Not Available";
+    const benefitSection = container.querySelector(".jobs-description__benefits, .jobs-description-benefits");
+    if (benefitSection && benefitSection.textContent) {
+      benefits = benefitSection.textContent.trim();
+    } else if (descText !== "Not Available") {
+      const benefitsKeywords = ["health insurance", "401(k)", "dental", "vision", "retirement", "pto", "paid time off", "stock options"];
+      const foundBenefits: string[] = [];
+      benefitsKeywords.forEach((kw) => {
+        if (descText.toLowerCase().includes(kw)) {
+          foundBenefits.push(kw.toUpperCase());
+        }
+      });
+      if (foundBenefits.length > 0) {
+        benefits = foundBenefits.join(", ");
+      }
+    }
+
+    // Apply URL
+    let applyUrl = "LinkedIn Easy Apply";
+    const applyLink = container.querySelector([
+      "a.jobs-apply-button",
+      "a[href*='/jobs/view/']",
+      "button.jobs-apply-button"
+    ].join(", ")) as HTMLAnchorElement | null;
+    if (applyLink && applyLink.href && applyLink.href.startsWith("http")) {
+      applyUrl = applyLink.href;
+    } else {
+      const easyApplyBtn = container.querySelector(".jobs-apply-button--easy-apply, .jobs-apply-button");
+      if (easyApplyBtn) {
+        applyUrl = "LinkedIn Easy Apply";
+      }
+    }
+
+    // Skills pills
     const skillsList: string[] = [...insights.skills];
     container.querySelectorAll(".app-shared-outline-pill, .jobs-opinion-skills-list__pill, a[href*='/search/results/all/?keywords=']").forEach((pill) => {
       const txt = pill.textContent?.trim();
@@ -891,29 +1014,20 @@ function injectFloatingUI() {
       }
     });
 
-    // Fallback regex search in description for technical skills if missing
-    const descText = description || "";
-    if (skillsList.length === 0 || (skillsList.length === 1 && skillsList[0] === "Not Specified")) {
+    if ((skillsList.length === 0 || (skillsList.length === 1 && (skillsList[0] === "Not Specified" || skillsList[0] === "Not Available"))) && descText !== "Not Available") {
       const commonSkills = ["React", "TypeScript", "JavaScript", "Python", "Java", "HTML", "CSS", "SQL", "Docker", "AWS", "Node.js", "C++", "C#", "Go", "Rust", "Swift", "Kubernetes", "Angular", "Vue", "Git"];
+      const escapeRegExp = (str: string) => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       commonSkills.forEach((skill) => {
-        if (new RegExp("\\b" + skill + "\\b", "i").test(descText) && !skillsList.includes(skill)) {
-          if (skillsList[0] === "Not Specified") skillsList.shift();
+        const escaped = escapeRegExp(skill);
+        const pattern = new RegExp("(?:^|\\s|\\b)" + escaped + "(?:\\b|\\s|$)", "i");
+        if (pattern.test(descText) && !skillsList.includes(skill)) {
+          if (skillsList[0] === "Not Specified" || skillsList[0] === "Not Available") skillsList.shift();
           skillsList.push(skill);
         }
       });
     }
 
-    // Heuristics: Salary range regex lookup
-    const salaryRegex = /(\$\d{2,3}(?:,\d{3})*(?:\s*-\s*\$\d{2,3}(?:,\d{3})*)?\s*(?:per\s*year|yr|hr|hour|anually|annually|a\s*year|annual)?)/i;
-    const matchSalary = descText.match(salaryRegex);
-    let salary = matchSalary ? matchSalary[1] : "";
-    if (!salary) {
-      const salEl = container.querySelector(".jobs-unified-top-card__salary-range, .salary, .job-details-jobs-unified-top-card__salary");
-      if (salEl) salary = salEl.textContent?.trim() || "";
-    }
-    salary = salary || "Salary not disclosed";
-
-    // Heuristics: External company website url scan
+    // Company website link
     let companyWebsite = "";
     const links = container.querySelectorAll("a");
     for (const link of links) {
@@ -923,124 +1037,34 @@ function injectFloatingUI() {
         break;
       }
     }
-    if (!companyWebsite) {
+    if (!companyWebsite && descText !== "Not Available") {
       const webRegex = /(https?:\/\/(?:www\.)?[a-zA-Z0-9-]+\.[a-zA-Z]{2,6}(?:\.[a-zA-Z]{2,})?)/i;
       const matchWeb = descText.match(webRegex);
       if (matchWeb) companyWebsite = matchWeb[1];
     }
-    companyWebsite = companyWebsite || "Website not specified";
+    companyWebsite = companyWebsite || "Not Available";
 
-    // Check if the scraper failed to find title and company name
-    const didScrapeFail = (!title || title === "Unavailable") && (!company || company === "Unavailable");
-
-    if (didScrapeFail) {
-      console.log("VeriHire Scraper: Selection failed. Activating local demo fallback datasets.");
-      const currentUrl = window.location.href;
-      const match = currentUrl.match(/currentJobId=(\d+)/) || currentUrl.match(/jobs\/view\/(\d+)/);
-      const jobId = match ? match[1] : currentUrl;
-      
-      let hash = 0;
-      for (let j = 0; j < jobId.length; j++) {
-        hash = jobId.charCodeAt(j) + ((hash << 5) - hash);
-      }
-      const mockIndex = Math.abs(hash) % 6;
-
-      const mockData = [
-        {
-          jobTitle: "Senior Frontend Engineer",
-          companyName: "Vercel",
-          jobLocation: "San Francisco, CA (Remote)",
-          jobDescription: "We are looking for a Senior Frontend Engineer to join our team. You will work on Next.js, React, and build world-class user interfaces. Collaborate with designers and platform engineers to deliver fast, secure experiences.",
-          employmentType: "Full-time",
-          experienceLevel: "Mid-Senior level",
-          skills: ["Next.js", "React", "TypeScript", "Tailwind CSS", "GraphQL"],
-          salary: "$140,000 - $180,000",
-          companyWebsite: "https://vercel.com"
-        },
-        {
-          jobTitle: "Staff Software Engineer - Billing",
-          companyName: "Stripe",
-          jobLocation: "Seattle, WA (Hybrid)",
-          jobDescription: "Stripe Billing is seeking an experienced Backend Engineer to lead complex monetary ledger systems. You will construct highly resilient APIs, manage transaction safety protocols, and scale distributed database systems.",
-          employmentType: "Full-time",
-          experienceLevel: "Staff level",
-          skills: ["Ruby", "Go", "APIs", "Distributed Systems", "PostgreSQL"],
-          salary: "$160,000 - $210,000",
-          companyWebsite: "https://stripe.com"
-        },
-        {
-          jobTitle: "Full Stack Engineer (Database)",
-          companyName: "Supabase",
-          jobLocation: "Singapore (Remote)",
-          jobDescription: "Help us construct the open source Firebase alternative. Build real-time database subscription features, integrate safe auth systems, and manage high-performance TypeScript query builders.",
-          employmentType: "Contract",
-          experienceLevel: "Mid-Senior level",
-          skills: ["PostgreSQL", "Node.js", "React", "TypeScript", "Docker"],
-          salary: "$120,000 - $150,000",
-          companyWebsite: "https://supabase.com"
-        },
-        {
-          jobTitle: "Infrastructure Security Architect",
-          companyName: "HashiCorp",
-          jobLocation: "Austin, TX (On-site)",
-          jobDescription: "Design security validation layers for infrastructure delivery. You will audit multi-tenant cloud orchestration blueprints, configure Vault policies, and direct Terraform automation workflows.",
-          employmentType: "Full-time",
-          experienceLevel: "Director level",
-          skills: ["Terraform", "Vault", "AWS", "Kubernetes", "IAM"],
-          salary: "$180,000 - $230,000",
-          companyWebsite: "https://hashicorp.com"
-        },
-        {
-          jobTitle: "Member of Technical Staff - Reasoning",
-          companyName: "OpenAI",
-          jobLocation: "San Francisco, CA (Hybrid)",
-          jobDescription: "Train next-generation reasoning models to solve complex logical, math, and code-synthesis benchmarks. You will structure deep learning workflows, parse training datasets, and build PyTorch infrastructure.",
-          employmentType: "Full-time",
-          experienceLevel: "Senior level",
-          skills: ["Python", "PyTorch", "Deep Learning", "Transformers", "NLP"],
-          salary: "$240,000 - $370,000",
-          companyWebsite: "https://openai.com"
-        },
-        {
-          jobTitle: "Senior Product Designer - Editor",
-          companyName: "Figma",
-          jobLocation: "New York, NY (Hybrid)",
-          jobDescription: "Design collaborative creation interfaces inside Figma. Work on vector manipulation workflows, component property controls, design library sync, and interactive micro-animations.",
-          employmentType: "Full-time",
-          experienceLevel: "Mid-Senior level",
-          skills: ["UI/UX", "Figma", "Prototyping", "Design Systems", "Product Strategy"],
-          salary: "$150,000 - $190,000",
-          companyWebsite: "https://figma.com"
-        }
-      ];
-
-      const selectedMock = mockData[mockIndex];
-      return {
-        jobTitle: selectedMock.jobTitle,
-        companyName: selectedMock.companyName,
-        jobLocation: selectedMock.jobLocation,
-        jobDescription: selectedMock.jobDescription,
-        employmentType: selectedMock.employmentType,
-        experienceLevel: selectedMock.experienceLevel,
-        skills: selectedMock.skills,
-        salary: selectedMock.salary,
-        companyWebsite: selectedMock.companyWebsite,
-        jobUrl: currentUrl
-      };
-    }
-
-    return {
-      jobTitle: title || "Unavailable",
-      companyName: company || "Unavailable",
-      jobLocation: location || "Unavailable",
-      jobDescription: description || "Unavailable",
-      employmentType: insights.employmentType || "Not Specified",
-      experienceLevel: insights.experienceLevel || "Not Specified",
-      skills: skillsList.length > 0 ? skillsList : ["Not Specified"],
+    cachedScrapedData = {
+      jobTitle: title,
+      companyName: company,
+      companyUrl: companyUrl,
+      jobLocation: location,
+      jobDescription: description,
+      employmentType: insights.employmentType || "Not Available",
+      workplaceType: workplaceType,
+      experienceLevel: insights.experienceLevel || "Not Available",
       salary: salary,
+      applicants: applicants,
+      hiringTeam: hiringTeam,
+      skills: skillsList.length > 0 ? skillsList : ["Not Available"],
+      benefits: benefits,
+      applyUrl: applyUrl,
       companyWebsite: companyWebsite,
       jobUrl: window.location.href
     };
+
+    lastScrapedJobId = currentKey;
+    return cachedScrapedData;
   }
 
   // Set up event listeners and state
@@ -1218,14 +1242,37 @@ function injectFloatingUI() {
       try {
         const container = getActiveJobContainer();
         const containerReady = container !== document;
-        const scraped = scrapeJobPage();
-        const didFail = (!scraped.jobTitle || scraped.jobTitle === "Unavailable" || scraped.jobTitle === "Job title not detected") &&
-                        (!scraped.companyName || scraped.companyName === "Unavailable" || scraped.companyName === "Company not detected");
+        const currentKey = getJobKey();
+        let scraped;
+        if (lastScrapedJobId === currentKey && cachedScrapedData && cachedScrapedData.jobTitle !== "Not Available") {
+          scraped = cachedScrapedData;
+        } else {
+          scraped = scrapeJobPage(true);
+        }
+        const didFail = (!scraped.jobTitle || scraped.jobTitle === "Unavailable" || scraped.jobTitle === "Not Available") &&
+                        (!scraped.companyName || scraped.companyName === "Unavailable" || scraped.companyName === "Not Available");
 
-        const shouldRetry = (didFail || !containerReady) && attempts < maxAttempts;
+        const seeMoreBtn = container.querySelector([
+          "button.jobs-description__footer-button",
+          "button.jobs-description__button",
+          ".jobs-description__footer-button",
+          "button[aria-label*='See more']",
+          "button[aria-label*='show more']",
+          ".jobs-description-content__button"
+        ].join(", ")) as HTMLButtonElement | null;
+        
+        const hasSeeMore = !!(seeMoreBtn && seeMoreBtn.textContent?.toLowerCase().includes("see more"));
+        
+        if (hasSeeMore && seeMoreBtn) {
+          console.log("VeriHire Scraper: Clicking 'See more' to expand full description...");
+          seeMoreBtn.click();
+        }
+
+        const shouldRetry = (didFail || !containerReady || hasSeeMore) && attempts < maxAttempts;
 
         if (shouldRetry) {
-          console.log(`VeriHire Scraper: Job details loading (attempt ${attempts}/${maxAttempts}). Container ready: ${containerReady}. Retrying in 700ms...`);
+          console.log(`VeriHire Scraper: Job details loading/expanding (attempt ${attempts}/${maxAttempts}). Container ready: ${containerReady}. Has See more: ${hasSeeMore}. Retrying in 700ms...`);
+          cachedScrapedData = null; // Clear cached data so next attempt gets expanded DOM
           scrapeTimeoutId = setTimeout(performScrape, 700);
           return;
         }
@@ -1233,10 +1280,102 @@ function injectFloatingUI() {
         // Hide skeleton loader on complete
         if (skeletonView) skeletonView.style.display = "none";
 
-        // If extraction is completely failed (which shouldn't happen with mock data fallback, but just in case)
+        let finalScraped = scraped;
+
         if (didFail) {
-          if (errorView) errorView.style.display = "block";
-          return;
+          console.log("VeriHire Scraper: Selection failed. Activating local demo fallback datasets.");
+          const currentUrl = window.location.href;
+          const match = currentUrl.match(/currentJobId=(\d+)/) || currentUrl.match(/jobs\/view\/(\d+)/);
+          const jobId = match ? match[1] : currentUrl;
+          
+          let hash = 0;
+          for (let j = 0; j < jobId.length; j++) {
+            hash = jobId.charCodeAt(j) + ((hash << 5) - hash);
+          }
+          const mockIndex = Math.abs(hash) % 6;
+
+          const mockData = [
+            {
+              jobTitle: "Senior Frontend Engineer",
+              companyName: "Vercel",
+              jobLocation: "San Francisco, CA (Remote)",
+              jobDescription: "We are looking for a Senior Frontend Engineer to join our team. You will work on Next.js, React, and build world-class user interfaces. Collaborate with designers and platform engineers to deliver fast, secure experiences.",
+              employmentType: "Full-time",
+              experienceLevel: "Mid-Senior level",
+              skills: ["Next.js", "React", "TypeScript", "Tailwind CSS", "GraphQL"],
+              salary: "$140,000 - $180,000",
+              companyWebsite: "https://vercel.com"
+            },
+            {
+              jobTitle: "Staff Software Engineer - Billing",
+              companyName: "Stripe",
+              jobLocation: "Seattle, WA (Hybrid)",
+              jobDescription: "Stripe Billing is seeking an experienced Backend Engineer to lead complex monetary ledger systems. You will construct highly resilient APIs, manage transaction safety protocols, and scale distributed database systems.",
+              employmentType: "Full-time",
+              experienceLevel: "Staff level",
+              skills: ["Ruby", "Go", "APIs", "Distributed Systems", "PostgreSQL"],
+              salary: "$160,000 - $210,000",
+              companyWebsite: "https://stripe.com"
+            },
+            {
+              jobTitle: "Full Stack Engineer (Database)",
+              companyName: "Supabase",
+              jobLocation: "Singapore (Remote)",
+              jobDescription: "Help us construct the open source Firebase alternative. Build real-time database subscription features, integrate safe auth systems, and manage high-performance TypeScript query builders.",
+              employmentType: "Contract",
+              experienceLevel: "Mid-Senior level",
+              skills: ["PostgreSQL", "Node.js", "React", "TypeScript", "Docker"],
+              salary: "$120,000 - $150,000",
+              companyWebsite: "https://supabase.com"
+            },
+            {
+              jobTitle: "Infrastructure Security Architect",
+              companyName: "HashiCorp",
+              jobLocation: "Austin, TX (On-site)",
+              jobDescription: "Design security validation layers for infrastructure delivery. You will audit multi-tenant cloud orchestration blueprints, configure Vault policies, and direct Terraform automation workflows.",
+              employmentType: "Full-time",
+              experienceLevel: "Director level",
+              skills: ["Terraform", "Vault", "AWS", "Kubernetes", "IAM"],
+              salary: "$180,000 - $230,000",
+              companyWebsite: "https://hashicorp.com"
+            },
+            {
+              jobTitle: "Member of Technical Staff - Reasoning",
+              companyName: "OpenAI",
+              jobLocation: "San Francisco, CA (Hybrid)",
+              jobDescription: "Train next-generation reasoning models to solve complex logical, math, and code-synthesis benchmarks. You will structure deep learning workflows, parse training datasets, and build PyTorch infrastructure.",
+              employmentType: "Full-time",
+              experienceLevel: "Senior level",
+              skills: ["Python", "PyTorch", "Deep Learning", "Transformers", "NLP"],
+              salary: "$240,000 - $370,000",
+              companyWebsite: "https://openai.com"
+            },
+            {
+              jobTitle: "Senior Product Designer - Editor",
+              companyName: "Figma",
+              jobLocation: "New York, NY (Hybrid)",
+              jobDescription: "Design collaborative creation interfaces inside Figma. Work on vector manipulation workflows, component property controls, design library sync, and interactive micro-animations.",
+              employmentType: "Full-time",
+              experienceLevel: "Mid-Senior level",
+              skills: ["UI/UX", "Figma", "Prototyping", "Design Systems", "Product Strategy"],
+              salary: "$150,000 - $190,000",
+              companyWebsite: "https://figma.com"
+            }
+          ];
+
+          const selectedMock = mockData[mockIndex];
+          finalScraped = {
+            jobTitle: selectedMock.jobTitle,
+            companyName: selectedMock.companyName,
+            jobLocation: selectedMock.jobLocation,
+            jobDescription: selectedMock.jobDescription,
+            employmentType: selectedMock.employmentType,
+            experienceLevel: selectedMock.experienceLevel,
+            skills: selectedMock.skills,
+            salary: selectedMock.salary,
+            companyWebsite: selectedMock.companyWebsite,
+            jobUrl: currentUrl
+          };
         }
 
         // Show metadata card and summary elements
@@ -1259,7 +1398,7 @@ function injectFloatingUI() {
 
         // Toggle saved button state depending on active job title
         if (saveBtn) {
-          const jobKey = `${scraped.jobTitle}-${scraped.companyName}`;
+          const jobKey = `${finalScraped.jobTitle}-${finalScraped.companyName}`;
           if (savedJobsList.includes(jobKey)) {
             saveBtn.textContent = "Job Saved";
             saveBtn.className = "vh-btn vh-btn-saved";
@@ -1273,23 +1412,23 @@ function injectFloatingUI() {
 
         // Populate and show the SaaS action buttons with query parameter tags
         if (resumeBtn) {
-          resumeBtn.href = `${SAAS_URL}/resume?desc=${encodeURIComponent(scraped.jobDescription)}&isDemo=true`;
+          resumeBtn.href = `${SAAS_URL}/resume?desc=${encodeURIComponent(finalScraped.jobDescription)}&isDemo=true`;
           resumeBtn.style.display = "flex";
         }
         if (interviewBtn) {
-          interviewBtn.href = `${SAAS_URL}/interview-prep?title=${encodeURIComponent(scraped.jobTitle)}&company=${encodeURIComponent(scraped.companyName)}&isDemo=true`;
+          interviewBtn.href = `${SAAS_URL}/interview-prep?title=${encodeURIComponent(finalScraped.jobTitle)}&company=${encodeURIComponent(finalScraped.companyName)}&isDemo=true`;
           interviewBtn.style.display = "flex";
         }
 
         // Update metadata title card
-        if (titleEl) titleEl.textContent = scraped.jobTitle && scraped.jobTitle !== "Unavailable" ? scraped.jobTitle : "Job title not detected";
-        if (companyEl) companyEl.textContent = scraped.companyName && scraped.companyName !== "Unavailable" ? scraped.companyName : "Company not detected";
+        if (titleEl) titleEl.textContent = finalScraped.jobTitle && finalScraped.jobTitle !== "Unavailable" ? finalScraped.jobTitle : "Job title not detected";
+        if (companyEl) companyEl.textContent = finalScraped.companyName && finalScraped.companyName !== "Unavailable" ? finalScraped.companyName : "Company not detected";
 
         const locationMeta = drawer.querySelector("#vh-meta-location") as HTMLDivElement | null;
         if (locationMeta) {
-          if (scraped.jobLocation && scraped.jobLocation !== "Unavailable" && scraped.jobLocation !== "Not Specified") {
+          if (finalScraped.jobLocation && finalScraped.jobLocation !== "Unavailable" && finalScraped.jobLocation !== "Not Specified") {
             const locText = locationMeta.querySelector("span");
-            if (locText) locText.textContent = scraped.jobLocation;
+            if (locText) locText.textContent = finalScraped.jobLocation;
             locationMeta.style.display = "flex";
           } else {
             locationMeta.style.display = "none";
@@ -1298,9 +1437,9 @@ function injectFloatingUI() {
 
         const employmentMeta = drawer.querySelector("#vh-meta-employment") as HTMLDivElement | null;
         if (employmentMeta) {
-          if (scraped.employmentType && scraped.employmentType !== "Unavailable" && scraped.employmentType !== "Not Specified") {
+          if (finalScraped.employmentType && finalScraped.employmentType !== "Unavailable" && finalScraped.employmentType !== "Not Specified") {
             const empText = employmentMeta.querySelector("span");
-            if (empText) empText.textContent = scraped.employmentType;
+            if (empText) empText.textContent = finalScraped.employmentType;
             employmentMeta.style.display = "flex";
           } else {
             employmentMeta.style.display = "none";
@@ -1309,13 +1448,13 @@ function injectFloatingUI() {
 
         const metaRow = drawer.querySelector("#vh-summary-meta") as HTMLDivElement | null;
         if (metaRow) {
-          const hasLocation = scraped.jobLocation && scraped.jobLocation !== "Unavailable" && scraped.jobLocation !== "Not Specified";
-          const hasEmployment = scraped.employmentType && scraped.employmentType !== "Unavailable" && scraped.employmentType !== "Not Specified";
+          const hasLocation = finalScraped.jobLocation && finalScraped.jobLocation !== "Unavailable" && finalScraped.jobLocation !== "Not Specified";
+          const hasEmployment = finalScraped.employmentType && finalScraped.employmentType !== "Unavailable" && finalScraped.employmentType !== "Not Specified";
           metaRow.style.display = (hasLocation || hasEmployment) ? "flex" : "none";
         }
 
         // Calculate dynamic Demo Confidence Score & details from parsed job properties
-        const demoData = calculateDemoConfidence(scraped);
+        const demoData = calculateDemoConfidence(finalScraped);
         activeAnalysisScore = demoData.score;
 
         if (scoreTextEl) {
@@ -1383,14 +1522,12 @@ function injectFloatingUI() {
     drawer.classList.add("vh-open");
   });
 
-  let lastScrapedJobId = "";
   function checkJobDetailsUpdate() {
-    const currentUrl = window.location.href;
-    const match = currentUrl.match(/currentJobId=(\d+)/) || currentUrl.match(/jobs\/view\/(\d+)/);
-    const jobId = match ? match[1] : currentUrl;
+    const currentKey = getJobKey();
     
-    if (jobId !== lastScrapedJobId) {
-      lastScrapedJobId = jobId;
+    if (currentKey !== lastScrapedJobId) {
+      lastScrapedJobId = currentKey;
+      cachedScrapedData = null; // Clear cached scraped data immediately on job change!
       if (drawer.classList.contains("vh-open")) {
         triggerScrapeAndRender();
       }
@@ -1518,12 +1655,40 @@ function handlePageUpdates() {
   }
 }
 
-// Watch navigation updates in single page applications (like LinkedIn)
-const mutationObserver = new MutationObserver(() => {
+// Monkey-patch history pushState and replaceState to detect SPA URL transitions instantly
+const originalPushState = history.pushState;
+history.pushState = function(...args) {
+  originalPushState.apply(this, args);
+  setTimeout(() => {
+    handlePageUpdates();
+    if (onPageMutationHook) onPageMutationHook();
+  }, 50);
+};
+
+const originalReplaceState = history.replaceState;
+history.replaceState = function(...args) {
+  originalReplaceState.apply(this, args);
+  setTimeout(() => {
+    handlePageUpdates();
+    if (onPageMutationHook) onPageMutationHook();
+  }, 50);
+};
+
+window.addEventListener("popstate", () => {
   handlePageUpdates();
-  if (onPageMutationHook) {
-    onPageMutationHook();
-  }
+  if (onPageMutationHook) onPageMutationHook();
+});
+
+// Watch navigation updates in single page applications (like LinkedIn) with debouncing to optimize performance
+let debounceTimer: any = null;
+const mutationObserver = new MutationObserver(() => {
+  if (debounceTimer) clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    handlePageUpdates();
+    if (onPageMutationHook) {
+      onPageMutationHook();
+    }
+  }, 200);
 });
 mutationObserver.observe(document.body, { childList: true, subtree: true });
 
