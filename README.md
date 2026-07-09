@@ -199,7 +199,7 @@ VeriHire integrates directly into LinkedIn Jobs with a floating **Analyze Job** 
 Clicking the floating VeriHire button opens an intelligent side panel that extracts job information and provides Demo Analysis or Real AI Analysis (when an AI provider is configured).
 
 <p align="center">
-  <img src="docs\screenshots\extension-SaaSDash.png" alt="AI Job Analysis" width="100%">
+  <img src="docs\screenshots\extension-jobAnalysis.png" alt="AI Job Analysis" width="100%">
 </p>
 
 ---
