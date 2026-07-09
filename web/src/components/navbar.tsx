@@ -70,9 +70,20 @@ export const Navbar: React.FC = () => {
             </Button>
 
             {user ? (
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-slate-500 font-medium">Hello, {user.name}</span>
-                <Button variant="ghost" size="sm" onClick={logoutSession} className="text-rose-500 hover:bg-rose-500/10">
+              <div className="flex items-center gap-2">
+                {user.avatarUrl ? (
+                  <img
+                    src={user.avatarUrl}
+                    alt={user.name}
+                    className="w-6.5 h-6.5 rounded-full border border-slate-200 dark:border-slate-800/80 object-cover"
+                  />
+                ) : (
+                  <div className="w-6.5 h-6.5 rounded-full bg-brand-violet/10 flex items-center justify-center border border-brand-violet/25">
+                    <Shield className="w-3.5 h-3.5 text-brand-violet" />
+                  </div>
+                )}
+                <span className="text-xs text-slate-500 font-medium ml-1">Hello, {user.name}</span>
+                <Button variant="ghost" size="sm" onClick={logoutSession} className="text-rose-500 hover:bg-rose-500/10 ml-2">
                   Sign Out
                 </Button>
               </div>

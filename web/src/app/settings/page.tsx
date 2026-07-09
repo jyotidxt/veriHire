@@ -6,7 +6,7 @@ import { Sidebar } from "@/components/sidebar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Key, CreditCard, Shield, Copy, Check, CheckCircle2 } from "lucide-react";
+import { Sparkles, Key, CreditCard, Copy, Check, CheckCircle2, User as UserIcon, Calendar } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function SettingsPage() {
@@ -52,7 +52,6 @@ export default function SettingsPage() {
     setSaveSuccess(true);
     setTimeout(() => {
       setSaveSuccess(false);
-      // Reload page to reflect user name edits in navbar hello greeting
       window.location.reload();
     }, 1500);
   };
@@ -73,8 +72,28 @@ export default function SettingsPage() {
             {/* Left and Middle column */}
             <div className="lg:col-span-2 space-y-8">
               {/* Account settings */}
-              <Card className="space-y-4">
-                <h3 className="text-base font-bold">Profile Details</h3>
+              <Card className="space-y-6">
+                <div className="flex items-center gap-4">
+                  {user.avatarUrl ? (
+                    <img 
+                      src={user.avatarUrl} 
+                      alt={user.name} 
+                      className="w-14 h-14 rounded-full border border-slate-200 dark:border-slate-800 object-cover"
+                    />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-brand-violet/10 flex items-center justify-center border border-brand-violet/20">
+                      <UserIcon className="w-6 h-6 text-brand-violet" />
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-base font-bold">Profile Details</h3>
+                    <p className="text-xs text-slate-500 flex items-center gap-1.5 mt-0.5">
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span>Member since {user.createdAt || "Recently"}</span>
+                    </p>
+                  </div>
+                </div>
+
                 <form onSubmit={handleSaveProfile} className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1">

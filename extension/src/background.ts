@@ -187,6 +187,91 @@ function evaluateJobHeuristically(job: {
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   console.log("VeriHire Background Script: Received message", message);
 
+  if (message.type === "SYNC_USER_SESSION") {
+    chrome.storage.local.set({ activeUser: message.user }, () => {
+      console.log("VeriHire Background Worker: User session synced and saved successfully.", message.user);
+    });
+    sendResponse({ success: true, message: "User session synced successfully." });
+    return true;
+  }
+
+  if (message.type === "ANALYZE_JOB_DIRECT") {
+    const scrapedData = message.data;
+    chrome.storage.local.get(["activeUser"], (result) => {
+      const user = result.activeUser;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+      };
+      if (user) {
+        headers["x-user-id"] = user.id;
+        headers["x-user-email"] = user.email;
+        headers["x-user-name"] = user.name;
+      }
+
+      fetch("http://localhost:3000/api/analyze-job", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify({
+          title: scrapedData.jobTitle,
+          company: scrapedData.companyName,
+          description: scrapedData.jobDescription,
+          location: scrapedData.jobLocation,
+          url: scrapedData.jobUrl
+        })
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Server returned error status: ${res.status}`);
+          return res.json();
+        })
+        .then((apiResult) => {
+          sendResponse({ success: true, data: apiResult });
+        })
+        .catch((err) => {
+          console.warn("VeriHire Background Direct Analyze: Fetch failed. Running local fallback.", err);
+          try {
+            const localResult = evaluateJobHeuristically(scrapedData);
+            sendResponse({ success: true, data: localResult });
+          } catch (localErr: any) {
+            sendResponse({ success: false, error: localErr.message || "Failed direct analysis." });
+          }
+        });
+    });
+    return true;
+  }
+
+  if (message.type === "SAVE_JOB_DIRECT") {
+    const jobDetails = message.data;
+    chrome.storage.local.get(["activeUser"], (result) => {
+      const user = result.activeUser;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+      };
+      if (user) {
+        headers["x-user-id"] = user.id;
+        headers["x-user-email"] = user.email;
+        headers["x-user-name"] = user.name;
+      }
+
+      fetch("http://localhost:3000/api/applications", {
+        method: "POST",
+        headers: headers,
+        body: JSON.stringify(jobDetails)
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error(`Server returned error status: ${res.status}`);
+          return res.json();
+        })
+        .then((apiResult) => {
+          sendResponse({ success: true, data: apiResult.data });
+        })
+        .catch((err) => {
+          console.error("VeriHire Background Direct Save: Database write failed.", err);
+          sendResponse({ success: false, error: err.message || "Unable to save job to PostgreSQL." });
+        });
+    });
+    return true;
+  }
+
   if (message.type === "ANALYZE_JOB") {
     // 1. Query for the active browser tab
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -228,73 +313,84 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         // 4. Send scraped details to Next.js API backend (with local fallback if server is offline)
         const scrapedData = response.data;
         
-        fetch("http://localhost:3000/api/analyze-job", {
-          method: "POST",
-          headers: {
+        // Fetch active user details from storage to isolate analysis to their profile in Postgres
+        chrome.storage.local.get(["activeUser"], (result) => {
+          const user = result.activeUser;
+          const headers: Record<string, string> = {
             "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            title: scrapedData.jobTitle,
-            company: scrapedData.companyName,
-            description: scrapedData.jobDescription,
-            location: scrapedData.jobLocation,
-            url: scrapedData.jobUrl
+          };
+          if (user) {
+            headers["x-user-id"] = user.id;
+            headers["x-user-email"] = user.email;
+            headers["x-user-name"] = user.name;
+          }
+
+          fetch("http://localhost:3000/api/analyze-job", {
+            method: "POST",
+            headers: headers,
+            body: JSON.stringify({
+              title: scrapedData.jobTitle,
+              company: scrapedData.companyName,
+              description: scrapedData.jobDescription,
+              location: scrapedData.jobLocation,
+              url: scrapedData.jobUrl
+            })
           })
-        })
-          .then((res) => {
-            if (!res.ok) {
-              throw new Error(`API server returned error status: ${res.status}`);
-            }
-            return res.json();
-          })
-          .then((apiResult) => {
-            sendResponse({
-              success: true,
-              data: {
-                jobDetails: {
-                  jobTitle: scrapedData.jobTitle,
-                  companyName: scrapedData.companyName,
-                  jobLocation: scrapedData.jobLocation,
-                  employmentType: scrapedData.employmentType,
-                  experienceLevel: scrapedData.experienceLevel,
-                  skills: scrapedData.skills,
-                  jobUrl: scrapedData.jobUrl
-                },
-                trustScore: apiResult.trustScore,
-                riskLevel: apiResult.riskLevel,
-                aiExplanation: apiResult.explanation || "Analysis details processed by AI engine.",
-                companyVerificationSignals: (apiResult.signals || []).map((s: any) => ({
-                  signalName: s.name || s.signalName || "Signal Check",
-                  description: s.description || "",
-                  isVerified: s.verified ?? s.isVerified ?? true
-                })),
-                suspiciousIndicators: (apiResult.concerns || []).map((c: any) => ({
-                  category: c.category || "Warning",
-                  description: c.description || "",
-                  severity: c.severity || "MEDIUM"
-                })),
-                safetyRecommendations: apiResult.recommendation || []
+            .then((res) => {
+              if (!res.ok) {
+                throw new Error(`API server returned error status: ${res.status}`);
               }
-            });
-          })
-          .catch((fetchErr) => {
-            console.warn(
-              "VeriHire Extension: Next.js API server offline. Falling back to local client-side evaluation.",
-              fetchErr
-            );
-            try {
-              const localResult = evaluateJobHeuristically(scrapedData);
+              return res.json();
+            })
+            .then((apiResult) => {
               sendResponse({
                 success: true,
-                data: localResult
+                data: {
+                  jobDetails: {
+                    jobTitle: scrapedData.jobTitle,
+                    companyName: scrapedData.companyName,
+                    jobLocation: scrapedData.jobLocation,
+                    employmentType: scrapedData.employmentType,
+                    experienceLevel: scrapedData.experienceLevel,
+                    skills: scrapedData.skills,
+                    jobUrl: scrapedData.jobUrl
+                  },
+                  trustScore: apiResult.trustScore,
+                  riskLevel: apiResult.riskLevel,
+                  aiExplanation: apiResult.explanation || "Analysis details processed by AI engine.",
+                  companyVerificationSignals: (apiResult.signals || []).map((s: any) => ({
+                    signalName: s.name || s.signalName || "Signal Check",
+                    description: s.description || "",
+                    isVerified: s.verified ?? s.isVerified ?? true
+                  })),
+                  suspiciousIndicators: (apiResult.concerns || []).map((c: any) => ({
+                    category: c.category || "Warning",
+                    description: c.description || "",
+                    severity: c.severity || "MEDIUM"
+                  })),
+                  safetyRecommendations: apiResult.recommendation || []
+                }
               });
-            } catch (err: any) {
-              sendResponse({
-                success: false,
-                error: err.message || "An error occurred during evaluation."
-              });
-            }
-          });
+            })
+            .catch((fetchErr) => {
+              console.warn(
+                "VeriHire Extension: Next.js API server offline. Falling back to local client-side evaluation.",
+                fetchErr
+              );
+              try {
+                const localResult = evaluateJobHeuristically(scrapedData);
+                sendResponse({
+                  success: true,
+                  data: localResult
+                });
+              } catch (err: any) {
+                sendResponse({
+                  success: false,
+                  error: err.message || "An error occurred during evaluation."
+                });
+              }
+            });
+        });
       });
     });
 

@@ -2,6 +2,22 @@
 
 console.log("VeriHire Content Script: Initializing floating UI injector.");
 
+// Sync user session if running on VeriHire SaaS website domain
+if (window.location.hostname === "localhost" || window.location.hostname.includes("vercel.app")) {
+  const storedUser = localStorage.getItem("verihire_user");
+  if (storedUser) {
+    try {
+      const parsedUser = JSON.parse(storedUser);
+      chrome.runtime.sendMessage({ type: "SYNC_USER_SESSION", user: parsedUser }, (res) => {
+        console.log("VeriHire Content Script: Session synced successfully with background worker:", res);
+      });
+    } catch (e) {
+      console.error("VeriHire Content Script: Failed to parse verihire_user from localStorage", e);
+    }
+  }
+}
+
+
 // SVG Icons as strings for easy injection inside Shadow DOM
 const SHIELD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield"><path d="M20 13c0 5-3.5 7.5-7.66 9.7a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .76-.97l8.24-2a1 1 0 0 1 .48 0l8.24 2A1 1 0 0 1 20 6z"/></svg>`;
 const CLOSE_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x"><path d="M18 6 6 18M6 6l12 12"/></svg>`;
@@ -297,6 +313,28 @@ const SHADOW_CSS = `
     box-shadow: none;
   }
 
+  .vh-btn-secondary {
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    color: #f1f5f9;
+    font-weight: 500;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-decoration: none;
+  }
+  .vh-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+
   .vh-link {
     display: block;
     text-align: center;
@@ -412,7 +450,9 @@ function injectFloatingUI() {
     <!-- Actions footer -->
     <div class="vh-footer">
       <button class="vh-btn" id="vh-save-btn">Save Job Listing</button>
-      <a href="https://verihire.app/dashboard" target="_blank" class="vh-link">
+      <a href="#" target="_blank" class="vh-btn-secondary" id="vh-resume-btn" style="display: none;">Compare Resume</a>
+      <a href="#" target="_blank" class="vh-btn-secondary" id="vh-interview-btn" style="display: none;">Prep Interview</a>
+      <a href="http://localhost:3000/dashboard" target="_blank" class="vh-btn-secondary">
         Open SaaS Portal →
       </a>
     </div>
@@ -562,9 +602,14 @@ function injectFloatingUI() {
     };
   }
 
-  // Set up event listeners
+  // Set up event listeners and state
   const closeBtn = drawer.querySelector(".vh-close-btn");
-  const saveBtn = drawer.querySelector("#vh-save-btn");
+  const saveBtn = drawer.querySelector("#vh-save-btn") as HTMLButtonElement | null;
+  const resumeBtn = drawer.querySelector("#vh-resume-btn") as HTMLAnchorElement | null;
+  const interviewBtn = drawer.querySelector("#vh-interview-btn") as HTMLAnchorElement | null;
+
+  let activeAnalysisScore = 80;
+  let activeAnalysisRisk = "LOW";
 
   bubble.addEventListener("click", () => {
     // 1. Scrape real job metadata from active page content
@@ -582,39 +627,20 @@ function injectFloatingUI() {
     if (companyEl) companyEl.textContent = scraped.companyName;
     if (locationEl) locationEl.textContent = scraped.jobLocation;
 
-    // Simulate simple heuristic evaluation to populate scores dynamically
-    const isSuspicious =
-      scraped.jobTitle.toLowerCase().includes("data entry") ||
-      scraped.companyName.toLowerCase().includes("freelance") ||
-      scraped.jobDescription.toLowerCase().includes("telegram") ||
-      scraped.jobDescription.toLowerCase().includes("whatsapp") ||
-      scraped.jobDescription.toLowerCase().includes("purchase");
-
-    if (isSuspicious) {
-      if (scoreTextEl) {
-        scoreTextEl.textContent = "42/100";
-        scoreTextEl.className = "vh-score-value high";
-      }
-      if (badgeEl) {
-        badgeEl.textContent = "High Risk";
-        badgeEl.className = "vh-badge high";
-      }
-      if (explanationEl) {
-        explanationEl.textContent = "Description contains warning parameters (e.g. chat redirects or upfront startup cost terms). Exercise caution.";
-      }
-    } else {
-      if (scoreTextEl) {
-        scoreTextEl.textContent = "88/100";
-        scoreTextEl.className = "vh-score-value";
-      }
-      if (badgeEl) {
-        badgeEl.textContent = "Low Risk";
-        badgeEl.className = "vh-badge";
-      }
-      if (explanationEl) {
-        explanationEl.textContent = "Hiring company registry checked. Details conform to standard recruitment practices.";
-      }
+    // Set loading indicator states
+    if (scoreTextEl) {
+      scoreTextEl.textContent = "...";
+      scoreTextEl.className = "vh-score-value";
     }
+    if (badgeEl) {
+      badgeEl.textContent = "ANALYZING...";
+      badgeEl.className = "vh-badge";
+    }
+    if (explanationEl) {
+      explanationEl.textContent = "Connecting to AI analysis engine to calculate safety metrics...";
+    }
+    if (resumeBtn) resumeBtn.style.display = "none";
+    if (interviewBtn) interviewBtn.style.display = "none";
 
     // Toggle saved button state depending on active job title
     if (saveBtn) {
@@ -622,14 +648,63 @@ function injectFloatingUI() {
       if (savedJobsList.includes(jobKey)) {
         saveBtn.textContent = "Job Saved";
         saveBtn.className = "vh-btn vh-btn-saved";
+        saveBtn.disabled = true;
       } else {
         saveBtn.textContent = "Save Job Listing";
         saveBtn.className = "vh-btn";
+        saveBtn.disabled = false;
       }
     }
 
-    // Slide in the side drawer panel
+    // Slide in the side drawer panel immediately
     drawer.classList.add("vh-open");
+
+    // 3. Trigger real backend AI audit request
+    chrome.runtime.sendMessage(
+      { type: "ANALYZE_JOB_DIRECT", data: scraped },
+      (response) => {
+        if (response && response.success) {
+          const res = response.data;
+          activeAnalysisScore = res.trustScore;
+          activeAnalysisRisk = res.riskLevel || "LOW";
+
+          // Update metrics elements
+          if (scoreTextEl) {
+            scoreTextEl.textContent = `${res.trustScore}/100`;
+            scoreTextEl.className = `vh-score-value ${
+              res.trustScore < 50 ? "high" : res.trustScore < 80 ? "medium" : ""
+            }`;
+          }
+          if (badgeEl) {
+            badgeEl.textContent = `${activeAnalysisRisk} RISK`;
+            badgeEl.className = `vh-badge ${
+              activeAnalysisRisk === "HIGH" ? "high" : activeAnalysisRisk === "MEDIUM" ? "medium" : ""
+            }`;
+          }
+          if (explanationEl) {
+            explanationEl.textContent = res.explanation || "Inspection completed successfully.";
+          }
+
+          // Populate and show the SaaS action buttons with query parameter tags
+          if (resumeBtn) {
+            resumeBtn.href = `http://localhost:3000/resume?desc=${encodeURIComponent(scraped.jobDescription)}`;
+            resumeBtn.style.display = "flex";
+          }
+          if (interviewBtn) {
+            interviewBtn.href = `http://localhost:3000/interview-prep?title=${encodeURIComponent(scraped.jobTitle)}&company=${encodeURIComponent(scraped.companyName)}`;
+            interviewBtn.style.display = "flex";
+          }
+        } else {
+          if (explanationEl) {
+            explanationEl.textContent = response?.error || "Connection to VeriHire local dev server failed. Please verify the web app is running on port 3000.";
+          }
+          if (badgeEl) {
+            badgeEl.textContent = "OFFLINE";
+            badgeEl.className = "vh-badge high";
+          }
+        }
+      }
+    );
   });
 
   closeBtn?.addEventListener("click", () => {
@@ -641,12 +716,44 @@ function injectFloatingUI() {
     const jobKey = `${scraped.jobTitle}-${scraped.companyName}`;
     
     if (!savedJobsList.includes(jobKey)) {
-      savedJobsList.push(jobKey);
       if (saveBtn) {
-        saveBtn.textContent = "Job Saved";
-        saveBtn.className = "vh-btn vh-btn-saved";
+        saveBtn.textContent = "Saving to Board...";
+        saveBtn.disabled = true;
       }
-      console.log("VeriHire: Saved job listing locally", scraped);
+
+      chrome.runtime.sendMessage(
+        {
+          type: "SAVE_JOB_DIRECT",
+          data: {
+            title: scraped.jobTitle,
+            company: scraped.companyName,
+            location: scraped.jobLocation,
+            url: scraped.jobUrl,
+            score: activeAnalysisScore,
+            risk: activeAnalysisRisk,
+            status: "SAVED"
+          }
+        },
+        (response) => {
+          if (response && response.success) {
+            savedJobsList.push(jobKey);
+            if (saveBtn) {
+              saveBtn.textContent = "Job Saved";
+              saveBtn.className = "vh-btn vh-btn-saved";
+            }
+            console.log("VeriHire: Saved job listing to database", scraped);
+          } else {
+            if (saveBtn) {
+              saveBtn.textContent = "Save Failed";
+              saveBtn.disabled = false;
+              setTimeout(() => {
+                saveBtn.textContent = "Save Job Listing";
+              }, 2500);
+            }
+            console.error("VeriHire: Failed to save job listing", response?.error);
+          }
+        }
+      );
     }
   });
 

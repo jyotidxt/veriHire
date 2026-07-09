@@ -63,10 +63,11 @@ export default function SavedJobsPage() {
         headers: getAuthHeaders()
       });
       const data = await res.json();
-      if (res.ok && data.success && data.data.length > 0) {
+      if (res.ok && data.success) {
+        // Set real user database applications (which is an empty array if they have none)
         setApplications(data.data);
       } else {
-        // Mock applications fallback if database is offline or empty
+        // Fallback to mock applications if database query fails or is not ready
         setApplications([
           {
             id: "mock-1",
@@ -233,91 +234,116 @@ export default function SavedJobsPage() {
             </div>
           ) : (
             /* Kanban Grid Scroll */
-            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 items-start overflow-x-auto pb-4">
-              {COLUMNS.map((column) => {
-                const columnApps = applications.filter((app) => app.status === column.id);
-                return (
-                  <div
-                    key={column.id}
-                    className={`flex flex-col gap-4 min-w-[220px] bg-slate-100/40 dark:bg-slate-900/40 border ${column.color} rounded-xl p-4 min-h-[500px] transition-colors`}
-                  >
-                    {/* Column Header */}
-                    <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                        {column.title}
-                      </h3>
-                      <span className="text-[11px] font-mono bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500">
-                        {columnApps.length}
-                      </span>
-                    </div>
+            applications.length === 0 ? (
+              <Card className="flex flex-col items-center justify-center p-16 text-center max-w-xl mx-auto space-y-4">
+                <div className="w-12 h-12 rounded-full bg-brand-violet/10 flex items-center justify-center border border-brand-violet/20">
+                  <Briefcase className="w-6 h-6 text-brand-violet" />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">Your Job Tracker Board is Empty</h3>
+                  <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                    Evaluate and save verified listings using the Chrome Extension. Your applications will show up here automatically.
+                  </p>
+                </div>
+                <a href="/" className="inline-block">
+                  <Button variant="glass" className="gap-2 border border-slate-200 dark:border-slate-800 text-xs">
+                    Learn How it Works
+                  </Button>
+                </a>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 items-start overflow-x-auto pb-4">
+                {COLUMNS.map((column) => {
+                  const columnApps = applications.filter((app) => app.status === column.id);
+                  return (
+                    <div
+                      key={column.id}
+                      className={`flex flex-col gap-4 min-w-[220px] bg-slate-100/40 dark:bg-slate-900/40 border ${column.color} rounded-xl p-4 min-h-[500px] transition-colors`}
+                    >
+                      {/* Column Header */}
+                      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-2">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                          {column.title}
+                        </h3>
+                        <span className="text-[11px] font-mono bg-slate-200 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-500">
+                          {columnApps.length}
+                        </span>
+                      </div>
 
-                    {/* Cards Container */}
-                    <div className="flex flex-col gap-3">
-                      {columnApps.map((app) => (
-                        <div
-                          key={app.id}
-                          className="glass-card p-4 hover:translate-y-[-2px] transition-all hover:shadow-lg duration-200 border border-slate-200 dark:border-slate-800/80 cursor-pointer space-y-3"
-                          onClick={() => handleOpenEdit(app)}
-                        >
-                          <div className="space-y-1">
-                            <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1">
-                              {app.jobTitle}
-                            </h4>
-                            <p className="text-[10px] text-slate-500">{app.companyName}</p>
+                      {/* Cards Container */}
+                      <div className="flex flex-col gap-3">
+                        {columnApps.length === 0 && (
+                          <div className="flex flex-col items-center justify-center py-10 px-2 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-lg text-center text-[10px] text-slate-400">
+                            <Briefcase className="w-5 h-5 text-slate-300 dark:text-slate-700 mb-1" />
+                            <span>No jobs inside.</span>
                           </div>
-
-                          <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/60">
-                            {/* Score indicator */}
-                            <div className="flex items-center gap-1">
-                              <ShieldCheck className={`w-3.5 h-3.5 ${
-                                app.trustScore >= 80 ? "text-emerald-500" : app.trustScore >= 50 ? "text-amber-500" : "text-rose-500"
-                              }`} />
-                              <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-400">
-                                {app.trustScore}/100
-                              </span>
+                        )}
+                        {columnApps.map((app) => (
+                          <div
+                            key={app.id}
+                            className="glass-card p-4 hover:translate-y-[-2px] transition-all hover:shadow-lg duration-200 border border-slate-200 dark:border-slate-800/80 cursor-pointer space-y-3"
+                            onClick={() => handleOpenEdit(app)}
+                          >
+                            <div className="space-y-1">
+                              <h4 className="font-bold text-xs text-slate-800 dark:text-slate-200 line-clamp-1">
+                                {app.jobTitle}
+                              </h4>
+                              <p className="text-[10px] text-slate-500">{app.companyName}</p>
                             </div>
 
-                            {/* Move triggers */}
-                            <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={() => moveStatus(app, "left")}
-                                className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30"
-                                disabled={column.id === "SAVED"}
-                              >
-                                <ChevronLeft className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => moveStatus(app, "right")}
-                                className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30"
-                                disabled={column.id === "REJECTED"}
-                              >
-                                <ChevronRight className="w-3.5 h-3.5" />
-                              </button>
+                            <div className="flex items-center justify-between pt-2 border-t border-slate-100 dark:border-slate-800/60">
+                              {/* Score indicator */}
+                              <div className="flex items-center gap-1">
+                                <ShieldCheck className={`w-3.5 h-3.5 ${
+                                  app.trustScore >= 80 ? "text-emerald-500" : app.trustScore >= 50 ? "text-amber-500" : "text-rose-500"
+                                }`} />
+                                <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-slate-400">
+                                  {app.trustScore}/100
+                                </span>
+                              </div>
+
+                              {/* Move triggers */}
+                              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                                <button
+                                  onClick={() => moveStatus(app, "left")}
+                                  className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30"
+                                  disabled={column.id === "SAVED"}
+                                >
+                                  <ChevronLeft className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  onClick={() => moveStatus(app, "right")}
+                                  className="p-1 rounded hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-200 disabled:opacity-30"
+                                  disabled={column.id === "REJECTED"}
+                                >
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
                             </div>
+
+                            {/* Task Reminder pill if present */}
+                            {app.reminderDate && (
+                              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-brand-violet/10 border border-brand-violet/20 text-[9px] text-brand-violet dark:text-violet-400 w-fit">
+                                <Calendar className="w-2.5 h-2.5" />
+                                <span>Remind: {app.reminderDate.split("T")[0]}</span>
+                              </div>
+                            )}
+
+                            {/* Notes snippet */}
+                            {app.notes && (
+                              <div className="flex items-start gap-1 text-[9px] text-slate-500 leading-normal line-clamp-2">
+                                <StickyNote className="w-2.5 h-2.5 mt-0.5 shrink-0" />
+                                <span>{app.notes}</span>
+                              </div>
+                            )}
                           </div>
-
-                          {/* Task Reminder pill if present */}
-                          {app.reminderDate && (
-                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded bg-brand-violet/10 border border-brand-violet/20 text-[9px] text-brand-violet dark:text-violet-400 w-fit">
-                              <Calendar className="w-2.5 h-2.5" />
-                              <span>Remind: {app.reminderDate.split("T")[0]}</span>
-                            </div>
-                          )}
-
-                          {/* Notes snippet */}
-                          {app.notes && (
-                            <div className="flex items-start gap-1 text-[9px] text-slate-500 leading-normal line-clamp-2">
-                              <StickyNote className="w-2.5 h-2.5 mt-0.5 shrink-0" />
-                              <span>{app.notes}</span>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )
           )}
 
           {/* Modal to update Application Details */}

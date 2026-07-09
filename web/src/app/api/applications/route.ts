@@ -101,3 +101,84 @@ export async function DELETE(req: NextRequest) {
     );
   }
 }
+
+// POST: Add a new saved job tracker card
+export async function POST(req: NextRequest) {
+  try {
+    let activeUserId = req.headers.get("x-user-id") || "system_default_user";
+    let activeUserEmail = req.headers.get("x-user-email") || "user@verihire.app";
+    let activeUserName = req.headers.get("x-user-name") || "Active User";
+
+    try {
+      const authSession = auth();
+      if (authSession && authSession.userId) {
+        activeUserId = authSession.userId;
+      }
+    } catch (e) {}
+
+    let body;
+    try {
+      body = await req.json();
+    } catch (e) {
+      return NextResponse.json(
+        { success: false, error: "Invalid JSON payload in request body." },
+        { status: 400 }
+      );
+    }
+
+    const { title, company, location, url, score, risk, status } = body;
+
+    if (!title || !company) {
+      return NextResponse.json(
+        { success: false, error: "Job title and company name are required parameters." },
+        { status: 400 }
+      );
+    }
+
+    // Generate unique jobIdExternal to satisfy schema unique index constraint
+    const jobIdExternal = `${title}_${company}`.toLowerCase().replace(/[^a-z0-9]/g, "_");
+
+    // Ensure User profile exists before inserting related savedJob
+    await prisma.user.upsert({
+      where: { id: activeUserId },
+      update: {},
+      create: {
+        id: activeUserId,
+        email: activeUserEmail,
+        fullName: activeUserName,
+        subscriptionTier: "FREE"
+      }
+    });
+
+    const savedJob = await prisma.savedJob.upsert({
+      where: {
+        userId_jobIdExternal: {
+          userId: activeUserId,
+          jobIdExternal
+        }
+      },
+      update: {
+        status: status || "SAVED",
+        trustScore: score ? parseInt(score.toString(), 10) : 80,
+        riskLevel: (risk || "LOW") as any
+      },
+      create: {
+        userId: activeUserId,
+        jobIdExternal,
+        jobTitle: title,
+        companyName: company,
+        trustScore: score ? parseInt(score.toString(), 10) : 80,
+        riskLevel: (risk || "LOW") as any,
+        status: status || "SAVED"
+      }
+    });
+
+    return NextResponse.json({ success: true, data: savedJob });
+  } catch (error: any) {
+    console.error("POST /api/applications error:", error);
+    return NextResponse.json(
+      { success: false, error: "Database write failed", details: error.message || "" },
+      { status: 500 }
+    );
+  }
+}

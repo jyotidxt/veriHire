@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
+import { VeriHireAuthProvider } from "@/components/auth-provider";
 import "../styles/globals.css";
 
 export const metadata: Metadata = {
@@ -12,14 +13,15 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Safe fallback if Clerk envs are not yet set, letting the app compile and run locally.
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || "";
-  const isClerkReady = publishableKey && publishableKey.length > 30 && !publishableKey.includes("placeholder");
+  const isClerkReady = publishableKey && publishableKey.length > 30 && !publishableKey.includes("placeholder") && !publishableKey.includes("Y2xlYW4tc2Fhcy04MC");
 
-  const content = (
+  const layoutContent = (
     <html lang="en" className="dark">
       <body className="antialiased bg-background-light dark:bg-background-dark min-h-screen text-slate-900 dark:text-slate-100 font-sans">
-        {children}
+        <VeriHireAuthProvider required={true}>
+          {children}
+        </VeriHireAuthProvider>
       </body>
     </html>
   );
@@ -27,10 +29,10 @@ export default function RootLayout({
   if (isClerkReady) {
     return (
       <ClerkProvider publishableKey={publishableKey}>
-        {content}
+        {layoutContent}
       </ClerkProvider>
     );
   }
 
-  return content;
+  return layoutContent;
 }

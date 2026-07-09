@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutGrid, History, Bookmark, Settings, CreditCard, Sparkles, FileText, BrainCircuit } from "lucide-react";
 import clsx from "clsx";
+import { useAuth } from "@/hooks/useAuth";
 
 interface SidebarProps {
   className?: string;
@@ -12,9 +13,11 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
   const pathname = usePathname();
+  const { user } = useAuth(false);
 
   const links = [
     { name: "Overview", href: "/dashboard", icon: LayoutGrid },
+    { name: "Getting Started", href: "/getting-started", icon: Sparkles },
     { name: "Scan History", href: "/scan-history", icon: History },
     { name: "Saved Jobs", href: "/saved-jobs", icon: Bookmark },
     { name: "Resume Match", href: "/resume", icon: FileText },
@@ -74,22 +77,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
       </div>
 
       {/* User Metadata / Plan Indicator footer */}
-      <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-sm font-semibold">
-          JD
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
-            John Doe
-          </p>
-          <div className="flex items-center gap-1.5">
-            <CreditCard className="w-3 h-3 text-slate-400" />
-            <span className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider">
-              PRO PLAN
-            </span>
+      {user && (
+        <div className="p-4 border-t border-slate-200 dark:border-slate-800 flex items-center gap-3">
+          {user.avatarUrl ? (
+            <img
+              src={user.avatarUrl}
+              alt={user.name}
+              className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-800 object-cover"
+            />
+          ) : (
+            <div className="w-8 h-8 rounded-full bg-brand-violet/10 flex items-center justify-center border border-brand-violet/25 text-xs font-bold text-brand-violet">
+              {user.name.slice(0, 2).toUpperCase()}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
+              {user.name}
+            </p>
+            <div className="flex items-center gap-1.5">
+              <CreditCard className="w-3 h-3 text-slate-400" />
+              <span className="text-[10px] font-semibold text-emerald-500 uppercase tracking-wider">
+                PRO PLAN
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </aside>
   );
 };
