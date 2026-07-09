@@ -130,6 +130,12 @@ export async function POST(req: NextRequest) {
     const jobUrl = body.jobUrl || body.url;
     const isDemo = body.isDemo === true;
 
+    const employmentType = body.employmentType || "Not Specified";
+    const experienceLevel = body.experienceLevel || "Not Specified";
+    const skills = body.skills || [];
+    const salary = body.salary || "Salary not disclosed";
+    const companyWebsite = body.companyWebsite || "Website not specified";
+
     // Input Validation
     const validationErrors: string[] = [];
     if (!jobTitle) validationErrors.push("Job Title must be a non-empty string.");
@@ -221,7 +227,7 @@ export async function POST(req: NextRequest) {
               response_format: { type: "json_object" },
               messages: [
                 { role: "system", content: systemPrompt },
-                { role: "user", content: `Job Title: ${jobTitle}\nCompany: ${companyName}\nLocation: ${jobLocation}\nDescription: ${jobDescription}` }
+                { role: "user", content: `Job Title: ${jobTitle}\nCompany: ${companyName}\nLocation: ${jobLocation}\nEmployment Type: ${employmentType}\nExperience Level: ${experienceLevel}\nSkills: ${skills.join(", ")}\nSalary: ${salary}\nCompany Website: ${companyWebsite}\nJob URL: ${jobUrl}\n\nDescription:\n${jobDescription}` }
               ],
               temperature: 0.1
             })
@@ -239,7 +245,7 @@ export async function POST(req: NextRequest) {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: `${systemPrompt}\n\nJob details:\nTitle: ${jobTitle}\nCompany: ${companyName}\nLocation: ${jobLocation}\nDescription: ${jobDescription}` }] }],
+              contents: [{ parts: [{ text: `${systemPrompt}\n\nJob details:\nTitle: ${jobTitle}\nCompany: ${companyName}\nLocation: ${jobLocation}\nEmployment Type: ${employmentType}\nExperience Level: ${experienceLevel}\nSkills: ${skills.join(", ")}\nSalary: ${salary}\nCompany Website: ${companyWebsite}\nJob URL: ${jobUrl}\n\nDescription:\n${jobDescription}` }] }],
               generationConfig: { responseMimeType: "application/json" }
             })
           });
@@ -263,7 +269,7 @@ export async function POST(req: NextRequest) {
               response_format: { type: "json_object" },
               messages: [
                 { role: "system", content: "You are a job safety auditor. Return a JSON object with keys: trustScore, riskLevel, signals, concerns, recommendation, explanation." },
-                { role: "user", content: `Job: ${jobTitle} at ${companyName}. Description: ${jobDescription}` }
+                { role: "user", content: `Job Title: ${jobTitle}\nCompany: ${companyName}\nLocation: ${jobLocation}\nEmployment Type: ${employmentType}\nExperience Level: ${experienceLevel}\nSkills: ${skills.join(", ")}\nSalary: ${salary}\nCompany Website: ${companyWebsite}\nJob URL: ${jobUrl}\n\nDescription:\n${jobDescription}` }
               ]
             })
           });
@@ -286,7 +292,7 @@ export async function POST(req: NextRequest) {
               response_format: { type: "json_object" },
               messages: [
                 { role: "system", content: "You are a job safety auditor. Return JSON containing keys: trustScore, riskLevel, signals, concerns, recommendation, explanation." },
-                { role: "user", content: `Job: ${jobTitle} at ${companyName}. Description: ${jobDescription}` }
+                { role: "user", content: `Job Title: ${jobTitle}\nCompany: ${companyName}\nLocation: ${jobLocation}\nEmployment Type: ${employmentType}\nExperience Level: ${experienceLevel}\nSkills: ${skills.join(", ")}\nSalary: ${salary}\nCompany Website: ${companyWebsite}\nJob URL: ${jobUrl}\n\nDescription:\n${jobDescription}` }
               ]
             })
           });
@@ -308,7 +314,7 @@ export async function POST(req: NextRequest) {
             body: JSON.stringify({
               model: "claude-3-5-sonnet-20241022",
               max_tokens: 1500,
-              messages: [{ role: "user", content: `Analyze this job listing. Return ONLY a valid JSON object with fields: trustScore (number), riskLevel, signals, concerns, recommendation, explanation. Job Title: ${jobTitle}, Company: ${companyName}, Description: ${jobDescription}` }]
+              messages: [{ role: "user", content: `Analyze this job listing. Return ONLY a valid JSON object with fields: trustScore (number), riskLevel, signals, concerns, recommendation, explanation. Job Title: ${jobTitle}\nCompany: ${companyName}\nLocation: ${jobLocation}\nEmployment Type: ${employmentType}\nExperience Level: ${experienceLevel}\nSkills: ${skills.join(", ")}\nSalary: ${salary}\nCompany Website: ${companyWebsite}\nJob URL: ${jobUrl}\n\nDescription:\n${jobDescription}` }]
             })
           });
 
@@ -320,9 +326,9 @@ export async function POST(req: NextRequest) {
             throw new Error(`Anthropic API error code: ${res.status}`);
           }
         }
-      } catch (err) {
-        console.warn("AI Config analysis failed. Running heuristic fallback.", err);
-        analysisResult = evaluateHeuristically(jobTitle, companyName, jobDescription, jobLocation, jobUrl);
+      } catch (err: any) {
+        console.error("AI Config analysis failed:", err);
+        throw new Error(`AI Provider Request Failed: ${err.message || err}`);
       }
     }
 
