@@ -1,20 +1,28 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Navbar } from "@/components/navbar";
 import { Sidebar } from "@/components/sidebar";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Sparkles, Key, CreditCard, Shield, Copy, Check } from "lucide-react";
-
-
+import { Sparkles, Key, CreditCard, Shield, Copy, Check, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 export default function SettingsPage() {
   const { user, loading } = useAuth();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [copiedKey, setCopiedKey] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const apiKeyMock = "vh_live_4a79c938b827cdb4e09f58e1c6";
+
+  useEffect(() => {
+    if (user) {
+      setName(user.name);
+      setEmail(user.email);
+    }
+  }, [user]);
 
   if (loading || !user) {
     return (
@@ -28,6 +36,25 @@ export default function SettingsPage() {
     navigator.clipboard.writeText(apiKeyMock);
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2000);
+  };
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !email.trim()) return;
+
+    const updatedUser = {
+      ...user,
+      name: name.trim(),
+      email: email.trim().toLowerCase()
+    };
+    
+    localStorage.setItem("verihire_user", JSON.stringify(updatedUser));
+    setSaveSuccess(true);
+    setTimeout(() => {
+      setSaveSuccess(false);
+      // Reload page to reflect user name edits in navbar hello greeting
+      window.location.reload();
+    }, 1500);
   };
 
   return (
@@ -48,25 +75,39 @@ export default function SettingsPage() {
               {/* Account settings */}
               <Card className="space-y-4">
                 <h3 className="text-base font-bold">Profile Details</h3>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-400 font-semibold uppercase">Full Name</label>
-                    <input
-                      type="text"
-                      defaultValue="John Doe"
-                      className="w-full bg-slate-100/40 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-violet/50"
-                    />
+                <form onSubmit={handleSaveProfile} className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-400 font-semibold uppercase">Full Name</label>
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        className="w-full bg-slate-100/40 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-violet/50"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-slate-400 font-semibold uppercase">Email Address</label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className="w-full bg-slate-100/40 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-lg p-2.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-violet/50"
+                        required
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-1">
-                    <label className="text-xs text-slate-400 font-semibold uppercase">Email Address</label>
-                    <input
-                      type="email"
-                      defaultValue="johndoe@example.com"
-                      className="w-full bg-slate-100/40 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 rounded-lg p-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-violet/50"
-                    />
-                  </div>
-                </div>
-                <Button className="mt-2">Save Settings</Button>
+
+                  {saveSuccess && (
+                    <div className="flex items-center gap-2 text-xs text-emerald-500 bg-emerald-500/10 p-3 rounded-lg border border-emerald-500/20">
+                      <CheckCircle2 className="w-4 h-4 shrink-0" />
+                      <span>Profile updated successfully! Refreshing details...</span>
+                    </div>
+                  )}
+
+                  <Button type="submit">Save Settings</Button>
+                </form>
               </Card>
 
               {/* Developer credentials */}

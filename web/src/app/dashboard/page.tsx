@@ -91,6 +91,74 @@ export default function DashboardPage() {
             </Card>
           </div>
 
+          {/* SVG Analytics Chart Card */}
+          <Card className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400">Scan Activity & Trust Indices</h3>
+                <p className="text-xs text-slate-500 mt-0.5">Average credibility metrics plotted over active scanning timelines.</p>
+              </div>
+              <div className="flex items-center gap-4 text-xs font-semibold">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  <span className="text-slate-500">Credibility Index</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="w-full h-48 relative pt-2">
+              <svg viewBox="0 0 600 150" className="w-full h-full overflow-visible">
+                <defs>
+                  <linearGradient id="chart-grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity="0" />
+                  </linearGradient>
+                  <linearGradient id="line-grad" x1="0" y1="0" x2="1" y2="0">
+                    <stop offset="0%" stopColor="#8b5cf6" />
+                    <stop offset="50%" stopColor="#10b981" />
+                    <stop offset="100%" stopColor="#06b6d4" />
+                  </linearGradient>
+                </defs>
+
+                {/* Grid Lines */}
+                <line x1="0" y1="30" x2="600" y2="30" stroke="currentColor" className="text-slate-200 dark:text-slate-800/60" strokeDasharray="4 4" />
+                <line x1="0" y1="75" x2="600" y2="75" stroke="currentColor" className="text-slate-200 dark:text-slate-800/60" strokeDasharray="4 4" />
+                <line x1="0" y1="120" x2="600" y2="120" stroke="currentColor" className="text-slate-200 dark:text-slate-800/60" strokeDasharray="4 4" />
+
+                {/* Gradient Area Fill */}
+                <path
+                  d="M0,130 L80,100 L160,115 L240,60 L320,80 L400,35 L480,45 L560,15 L600,20 L600,140 L0,140 Z"
+                  fill="url(#chart-grad)"
+                />
+
+                {/* Polyline path */}
+                <path
+                  d="M0,130 L80,100 L160,115 L240,60 L320,80 L400,35 L480,45 L560,15 L600,20"
+                  fill="none"
+                  stroke="url(#line-grad)"
+                  strokeWidth="3.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+
+                {/* Circles on vertices */}
+                <circle cx="80" cy="100" r="4.5" className="fill-white dark:fill-[#0B0F19] stroke-emerald-500 stroke-2" />
+                <circle cx="160" cy="115" r="4.5" className="fill-white dark:fill-[#0B0F19] stroke-rose-400 stroke-2" />
+                <circle cx="240" cy="60" r="4.5" className="fill-white dark:fill-[#0B0F19] stroke-violet-500 stroke-2" />
+                <circle cx="320" cy="80" r="4.5" className="fill-white dark:fill-[#0B0F19] stroke-amber-500 stroke-2" />
+                <circle cx="400" cy="35" r="4.5" className="fill-white dark:fill-[#0B0F19] stroke-emerald-500 stroke-2" />
+                <circle cx="480" cy="45" r="4.5" className="fill-white dark:fill-[#0B0F19] stroke-cyan-500 stroke-2" />
+                <circle cx="560" cy="15" r="4.5" className="fill-white dark:fill-[#0B0F19] stroke-emerald-400 stroke-2" />
+
+                {/* Text dates */}
+                <text x="80" y="145" textAnchor="middle" className="text-[10px] fill-slate-400 font-medium">Jul 1</text>
+                <text x="240" y="145" textAnchor="middle" className="text-[10px] fill-slate-400 font-medium">Jul 3</text>
+                <text x="400" y="145" textAnchor="middle" className="text-[10px] fill-slate-400 font-medium">Jul 5</text>
+                <text x="560" y="145" textAnchor="middle" className="text-[10px] fill-slate-400 font-medium">Jul 7</text>
+              </svg>
+            </div>
+          </Card>
+
           {/* Table feed */}
           <div className="space-y-4">
             <h2 className="text-lg font-semibold">Recent Job Evaluations</h2>
