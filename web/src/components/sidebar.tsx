@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGrid, History, Bookmark, Settings, CreditCard, Sparkles, FileText } from "lucide-react";
+import { LayoutGrid, History, Bookmark, Settings, CreditCard, Sparkles, FileText, BrainCircuit } from "lucide-react";
 import clsx from "clsx";
 
 interface SidebarProps {
@@ -18,6 +18,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ className }) => {
     { name: "Scan History", href: "/scan-history", icon: History },
     { name: "Saved Jobs", href: "/saved-jobs", icon: Bookmark },
     { name: "Resume Match", href: "/resume", icon: FileText },
+    { name: "Interview Prep", href: "/interview-prep", icon: BrainCircuit },
     { name: "Settings", href: "/settings", icon: Settings },
   ];
 
