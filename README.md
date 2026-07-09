@@ -189,7 +189,7 @@ A personalized dashboard where users can manage their complete job search journe
 VeriHire integrates directly into LinkedIn Jobs with a floating **Analyze Job** button, allowing users to review opportunities without leaving the page.
 
 <p align="center">
-  <img src="docs/screenshots/extension-button.png" alt="VeriHire Chrome Extension" width="100%">
+  <img src="docs\screenshots\extension-button.jpeg" alt="VeriHire Chrome Extension" width="100%">
 </p>
 
 ---
@@ -199,7 +199,7 @@ VeriHire integrates directly into LinkedIn Jobs with a floating **Analyze Job** 
 Clicking the floating VeriHire button opens an intelligent side panel that extracts job information and provides Demo Analysis or Real AI Analysis (when an AI provider is configured).
 
 <p align="center">
-  <img src="docs\screenshots\extension-jobAnalysis.png" alt="AI Job Analysis" width="100%">
+  <img src="docs\screenshots\extension-jobAnalysis.jpeg" alt="AI Job Analysis" width="100%">
 </p>
 
 ---
