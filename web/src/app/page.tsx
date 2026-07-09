@@ -147,6 +147,113 @@ export default function LandingPage() {
             </p>
           </Card>
         </div>
+
+        {/* How It Works Section */}
+        <div className="mt-36 space-y-12">
+          <div className="text-center max-w-2xl mx-auto space-y-3">
+            <h2 className="text-3xl font-bold tracking-tight">How VeriHire Works</h2>
+            <p className="text-sm text-slate-500">
+              Four simple, automated steps to ensure you never fall victim to recruitment scams.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="relative overflow-hidden space-y-4 border-slate-200 dark:border-slate-800">
+              <span className="absolute top-2 right-4 text-4xl font-extrabold text-slate-200/50 dark:text-slate-800/40 select-none">01</span>
+              <div className="w-9 h-9 rounded-lg bg-brand-violet/10 flex items-center justify-center">
+                <span className="text-xs font-bold text-brand-violet">Add</span>
+              </div>
+              <h4 className="font-bold text-sm">1. Load Extension</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Add our lightweight Chrome Extension to your browser in just one click.
+              </p>
+            </Card>
+
+            <Card className="relative overflow-hidden space-y-4 border-slate-200 dark:border-slate-800">
+              <span className="absolute top-2 right-4 text-4xl font-extrabold text-slate-200/50 dark:text-slate-800/40 select-none">02</span>
+              <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                <span className="text-xs font-bold text-emerald-500">View</span>
+              </div>
+              <h4 className="font-bold text-sm">2. Browse Listings</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Open any job post on LinkedIn. The VeriHire floating badge will appear in the corner automatically.
+              </p>
+            </Card>
+
+            <Card className="relative overflow-hidden space-y-4 border-slate-200 dark:border-slate-800">
+              <span className="absolute top-2 right-4 text-4xl font-extrabold text-slate-200/50 dark:text-slate-800/40 select-none">03</span>
+              <div className="w-9 h-9 rounded-lg bg-indigo-500/10 flex items-center justify-center">
+                <span className="text-xs font-bold text-indigo-500">Run</span>
+              </div>
+              <h4 className="font-bold text-sm">3. Audit Safety</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Click the shield badge to parse salaries, domains, metadata, and cross-reference indicators.
+              </p>
+            </Card>
+
+            <Card className="relative overflow-hidden space-y-4 border-slate-200 dark:border-slate-800">
+              <span className="absolute top-2 right-4 text-4xl font-extrabold text-slate-200/50 dark:text-slate-800/40 select-none">04</span>
+              <div className="w-9 h-9 rounded-lg bg-cyan-500/10 flex items-center justify-center">
+                <span className="text-xs font-bold text-cyan-500">Go</span>
+              </div>
+              <h4 className="font-bold text-sm">4. Match & Prepare</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Analyze your resume alignment and generate AI-driven technical and HR coaching interview guides.
+              </p>
+            </Card>
+          </div>
+        </div>
+
+        {/* About VeriHire Section */}
+        <div className="mt-36 glass-panel rounded-2xl border border-slate-200 dark:border-slate-800/80 p-8 md:p-12 relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-violet/5 rounded-full blur-3xl pointer-events-none" />
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center relative z-10">
+            {/* Left Col */}
+            <div className="space-y-4">
+              <span className="text-xs font-bold uppercase tracking-wider text-brand-violet">Our Core Mission</span>
+              <h2 className="text-3xl font-extrabold tracking-tight">Securing the Future of Remote Work</h2>
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                As the remote job landscape has grown, so has the complexity of recruitment fraud. Job seekers are frequently targeted by identity theft scams, phishing setups, and advance fee check fraud masquerading as verified corporate hires.
+              </p>
+              <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                VeriHire was created to bridge this transparency gap. We believe candidates deserve deep, objective visibility into job listings before sharing sensitive CV identifiers, tax forms, or interview schedules.
+              </p>
+            </div>
+
+            {/* Right Col */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Transparency First</h4>
+                <p className="text-xs text-slate-500 leading-normal">
+                  We collect details on recruiter domains and communication patterns to establish trust thresholds.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Liability Shield</h4>
+                <p className="text-xs text-slate-500 leading-normal">
+                  Our calculations outline indicators without legal assertions, preventing platform liabilities.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Zero Interruption</h4>
+                <p className="text-xs text-slate-500 leading-normal">
+                  Injected browser cards overlay LinkedIn pages directly without disrupting application tabs.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-bold text-slate-800 dark:text-slate-200">Privacy by Design</h4>
+                <p className="text-xs text-slate-500 leading-normal">
+                  Your uploaded resumes and search history are sandboxed, encrypted, and isolated to your profile.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
       </main>
 
       {/* Footer Section */}
@@ -238,11 +345,10 @@ export default function LandingPage() {
             </div>
           </div>
 
-          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm md:text-base font-semibold text-slate-600 dark:text-slate-400">
             <span>&copy; 2026 VeriHire. All rights reserved.</span>
-            <div className="flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-brand-violet" />
-              <span>Powered by OpenAI Secure Intelligence Engine. No credentials logged.</span>
+            <div className="flex items-center gap-1 text-slate-800 dark:text-white">
+              <span>Made with ❤️ by Jyoti Dixit</span>
             </div>
           </div>
         </div>
