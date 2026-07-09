@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { auth } from "@clerk/nextjs/server";
+import prisma from "@/lib/prisma";
+import { decrypt } from "@/lib/encryption";
 
 // Heuristic fallback if OpenAI is unreachable or key is missing
 function evaluateResumeHeuristically(resumeText: string, jobDescription: string) {
@@ -92,83 +95,187 @@ export async function POST(req: NextRequest) {
 
     let analysisResult;
 
-    // 3. Connect to OpenAI (with heuristic fallback)
-    const apiKey = process.env.OPENAI_API_KEY;
-    const isKeyConfigured = apiKey && !apiKey.includes("placeholder");
-
-    if (isKeyConfigured) {
-      try {
-        console.log("VeriHire API: Triggering OpenAI Resume Match completions query.");
-        
-        const systemPrompt = `You are a professional recruitment parser and AI talent advisor.
-Your task is to analyze the provided resume text and target job description, then output a structured JSON analysis.
-
-CRITICAL RULES:
-- Evaluate skills matching, score the alignment, and outline improvement pathways.
-- Under no circumstances hardcode keys. Only return the requested JSON object format.
-- Return a structured JSON object containing exactly the following keys:
-  - "matchScore": a number between 0 and 100 representing how well the candidate matches the job criteria.
-  - "parsedSkills": array of strings listing key skills extracted from the resume.
-  - "missingSkills": array of strings listing skills required/mentioned in the job description that are missing from the resume.
-  - "improvementSuggestions": array of strings providing actionable guidance on how the resume can be revised to increase match alignment.`;
-
-        const userContent = `Resume Text:
-${resumeText}
-
-Job Description:
-${jobDescription}`;
-
-        const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            response_format: { type: "json_object" },
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userContent }
-            ],
-            temperature: 0.2
-          })
-        });
-
-        if (openAiResponse.ok) {
-          const completionJson = await openAiResponse.json();
-          const parsedContent = JSON.parse(completionJson.choices[0].message.content);
-          
-          if (
-            typeof parsedContent.matchScore === "number" &&
-            Array.isArray(parsedContent.parsedSkills) &&
-            Array.isArray(parsedContent.missingSkills) &&
-            Array.isArray(parsedContent.improvementSuggestions)
-          ) {
-            analysisResult = parsedContent;
-            console.log("VeriHire API: OpenAI Resume Match succeeded.");
-          }
-        } else {
-          console.warn("VeriHire API: OpenAI completion endpoint returned error status:", openAiResponse.status);
-        }
-      } catch (aiErr) {
-        console.error("VeriHire API: Error during OpenAI resume analysis request:", aiErr);
+    // Connect to user-configured BYOK provider or premium fallback
+    let activeUserId = req.headers.get("x-user-id") || "system_default_user";
+    try {
+      const authSession = auth();
+      if (authSession && authSession.userId) {
+        activeUserId = authSession.userId;
       }
-    } else {
-      console.log("VeriHire API: OpenAI API key placeholder/missing. Using Heuristic Resume engine fallback.");
+    } catch (authErr) {}
+
+    const config = await prisma.aIConfig.findUnique({
+      where: { userId: activeUserId }
+    });
+
+    let activeKey = "";
+    let activeProvider = config?.activeProvider || "OPENAI";
+
+    if (config) {
+      if (activeProvider === "OPENAI") activeKey = decrypt(config.openaiKey || "");
+      else if (activeProvider === "GEMINI") activeKey = decrypt(config.geminiKey || "");
+      else if (activeProvider === "ANTHROPIC") activeKey = decrypt(config.anthropicKey || "");
+      else if (activeProvider === "GROQ") activeKey = decrypt(config.groqKey || "");
+      else if (activeProvider === "OPENROUTER") activeKey = decrypt(config.openrouterKey || "");
     }
 
-    // Fallback to local evaluation if OpenAI fails or key is missing
+    if (!activeKey) {
+      const envKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY;
+      if (envKey && !envKey.includes("placeholder")) {
+        activeKey = envKey;
+        activeProvider = process.env.GEMINI_API_KEY ? "GEMINI" : "OPENAI";
+      }
+    }
+
+    const isDemo = body.isDemo === true;
+
+    // If no credentials configured and not in Demo Mode, trigger BYOK modal
+    if (!activeKey && !isDemo) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "BYOK_REQUIRED",
+          error: "Real AI analysis is currently unavailable because no AI provider has been connected."
+        },
+        { status: 400 }
+      );
+    }
+
+    if (isDemo || !activeKey) {
+      analysisResult = evaluateResumeHeuristically(resumeText, jobDescription);
+    } else {
+      try {
+        const systemPrompt = `You are a recruitment parser. Analyze the resume text and target job description, then return a structured JSON object containing:
+        - "matchScore": number (0-100)
+        - "parsedSkills": array of strings
+        - "missingSkills": array of strings
+        - "improvementSuggestions": array of strings`;
+
+        if (activeProvider === "OPENAI") {
+          const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${activeKey}`
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              response_format: { type: "json_object" },
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: `Resume: ${resumeText}\nJob Description: ${jobDescription}` }
+              ],
+              temperature: 0.3
+            })
+          });
+
+          if (openAiResponse.ok) {
+            const completionJson = await openAiResponse.json();
+            analysisResult = JSON.parse(completionJson.choices[0].message.content);
+          } else {
+            throw new Error(`OpenAI API error code: ${openAiResponse.status}`);
+          }
+        } else if (activeProvider === "GEMINI") {
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: `${systemPrompt}\n\nResume: ${resumeText}\nJob Description: ${jobDescription}` }] }],
+              generationConfig: { responseMimeType: "application/json" }
+            })
+          });
+
+          if (res.ok) {
+            const completionJson = await res.json();
+            const text = completionJson.candidates[0].content.parts[0].text;
+            analysisResult = JSON.parse(text);
+          } else {
+            throw new Error(`Gemini API error code: ${res.status}`);
+          }
+        } else if (activeProvider === "GROQ") {
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${activeKey}`
+            },
+            body: JSON.stringify({
+              model: "llama-3.1-8b-instant",
+              response_format: { type: "json_object" },
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: `Resume: ${resumeText}, Job Description: ${jobDescription}` }
+              ]
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            analysisResult = JSON.parse(data.choices[0].message.content);
+          } else {
+            throw new Error(`Groq API error code: ${res.status}`);
+          }
+        } else if (activeProvider === "OPENROUTER") {
+          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${activeKey}`
+            },
+            body: JSON.stringify({
+              model: "google/gemini-flash-1.5",
+              response_format: { type: "json_object" },
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: `Resume: ${resumeText}, Job Description: ${jobDescription}` }
+              ]
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            analysisResult = JSON.parse(data.choices[0].message.content);
+          } else {
+            throw new Error(`OpenRouter API error code: ${res.status}`);
+          }
+        } else if (activeProvider === "ANTHROPIC") {
+          const res = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "x-api-key": activeKey,
+              "anthropic-version": "2023-06-01",
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              model: "claude-3-5-sonnet-20241022",
+              max_tokens: 1500,
+              messages: [{ role: "user", content: `${systemPrompt}\nResume: ${resumeText}\nJob Description: ${jobDescription}. Return valid JSON string only.` }]
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const text = data.content[0].text;
+            analysisResult = JSON.parse(text);
+          } else {
+            throw new Error(`Anthropic API error code: ${res.status}`);
+          }
+        }
+      } catch (err) {
+        console.warn("AI Config resume matching failed. Running heuristic fallback.", err);
+        analysisResult = evaluateResumeHeuristically(resumeText, jobDescription);
+      }
+    }
+
     if (!analysisResult) {
       analysisResult = evaluateResumeHeuristically(resumeText, jobDescription);
     }
 
-    // 4. Return structured analysis result
     return NextResponse.json({
-      matchScore: analysisResult.matchScore,
-      parsedSkills: analysisResult.parsedSkills,
-      missingSkills: analysisResult.missingSkills,
-      improvementSuggestions: analysisResult.improvementSuggestions
+      matchScore: analysisResult.matchScore || 0,
+      parsedSkills: analysisResult.parsedSkills || [],
+      missingSkills: analysisResult.missingSkills || [],
+      improvementSuggestions: analysisResult.improvementSuggestions || []
     });
   } catch (error: any) {
     console.error("VeriHire API resume server error:", error);

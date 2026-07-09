@@ -34,6 +34,7 @@ model User {
   analyses         JobAnalysis[]
   savedJobs        SavedJob[]
   apiKeys          ApiKey[]
+  aiConfig         AIConfig?
 
   @@map("users")
 }
@@ -124,4 +125,20 @@ model SavedJob {
 
   @@unique([userId, jobIdExternal])
   @@map("saved_jobs")
+}
+
+model AIConfig {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  activeProvider String    @default("OPENAI") // OPENAI, GEMINI, ANTHROPIC, GROQ, OPENROUTER
+  openaiKey      String?   @db.Text
+  geminiKey      String?   @db.Text
+  anthropicKey   String?   @db.Text
+  groqKey        String?   @db.Text
+  openrouterKey  String?   @db.Text
+  lastTestedAt   DateTime?
+  updatedAt      DateTime  @updatedAt
+
+  @@map("ai_configs")
 }

@@ -129,6 +129,22 @@ export default function SettingsPage() {
                 </form>
               </Card>
 
+              {/* AI Config BYOK Panel */}
+              <Card className="space-y-4 border border-brand-violet/20 bg-brand-violet/[0.01]">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="w-5 h-5 text-brand-violet" />
+                  <h3 className="text-base font-bold">AI Providers Setup</h3>
+                </div>
+                <p className="text-xs text-slate-500">
+                  Connect your own OpenAI, Google Gemini, Anthropic, or Groq API keys to run safety audits without rate restrictions.
+                </p>
+                <a href="/settings/ai-providers" className="inline-block">
+                  <Button className="bg-brand-violet hover:bg-brand-violet/90 text-white font-semibold text-xs">
+                    Manage AI Providers →
+                  </Button>
+                </a>
+              </Card>
+
               {/* Developer credentials */}
               <Card className="space-y-4">
                 <div className="flex items-center gap-2">

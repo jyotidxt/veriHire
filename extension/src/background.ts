@@ -1,4 +1,6 @@
-// Chrome Extension MV3 Background Script (Service Worker)
+// Configurable base URL: check manifest update_url to distinguish packed/store build from unpacked dev mode
+const IS_DEV = !("update_url" in chrome.runtime.getManifest());
+const SAAS_URL = IS_DEV ? "http://localhost:3000" : "https://verihire-jyotidxt.vercel.app";
 
 chrome.runtime.onInstalled.addListener(() => {
   console.log("VeriHire Extension: Installed and background service worker running.");
@@ -195,6 +197,38 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.type === "CHECK_AI_KEY_CONFIGURED") {
+    chrome.storage.local.get(["activeUser"], (result) => {
+      const user = result.activeUser;
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json"
+      };
+      if (user) {
+        headers["x-user-id"] = user.id;
+        headers["x-user-email"] = user.email;
+        headers["x-user-name"] = user.name;
+      }
+
+      fetch(`${SAAS_URL}/api/settings/ai-config`, {
+        method: "GET",
+        headers: headers
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("Failed to check BYOK configuration.");
+          return res.json();
+        })
+        .then((data) => {
+          const hasKey = data.openaiKeySet || data.geminiKeySet || data.anthropicKeySet || data.groqKeySet || data.openrouterKeySet;
+          sendResponse({ success: true, configured: !!hasKey });
+        })
+        .catch((err) => {
+          console.warn("VeriHire Background Check Config: Fetch failed.", err);
+          sendResponse({ success: false, configured: false });
+        });
+    });
+    return true;
+  }
+
   if (message.type === "ANALYZE_JOB_DIRECT") {
     const scrapedData = message.data;
     chrome.storage.local.get(["activeUser"], (result) => {
@@ -208,7 +242,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         headers["x-user-name"] = user.name;
       }
 
-      fetch("http://localhost:3000/api/analyze-job", {
+      fetch(`${SAAS_URL}/api/analyze-job`, {
         method: "POST",
         headers: headers,
         body: JSON.stringify({
@@ -216,15 +250,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           company: scrapedData.companyName,
           description: scrapedData.jobDescription,
           location: scrapedData.jobLocation,
-          url: scrapedData.jobUrl
+          url: scrapedData.jobUrl,
+          isDemo: message.isDemo === true
         })
       })
         .then((res) => {
-          if (!res.ok) throw new Error(`Server returned error status: ${res.status}`);
-          return res.json();
+          return res.json().then((json) => {
+            if (!res.ok) {
+              return { success: false, code: json.code, error: json.error || "Server validation failed" };
+            }
+            return { success: true, data: json };
+          });
         })
         .then((apiResult) => {
-          sendResponse({ success: true, data: apiResult });
+          sendResponse(apiResult);
         })
         .catch((err) => {
           console.warn("VeriHire Background Direct Analyze: Fetch failed. Running local fallback.", err);
@@ -252,7 +291,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
         headers["x-user-name"] = user.name;
       }
 
-      fetch("http://localhost:3000/api/applications", {
+      fetch(`${SAAS_URL}/api/applications`, {
         method: "POST",
         headers: headers,
         body: JSON.stringify(jobDetails)
@@ -325,7 +364,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             headers["x-user-name"] = user.name;
           }
 
-          fetch("http://localhost:3000/api/analyze-job", {
+          fetch(`${SAAS_URL}/api/analyze-job`, {
             method: "POST",
             headers: headers,
             body: JSON.stringify({
@@ -398,3 +437,5 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
   return false;
 });
+
+export {};

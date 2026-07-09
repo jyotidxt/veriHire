@@ -16,7 +16,9 @@ if (window.location.hostname === "localhost" || window.location.hostname.include
     }
   }
 }
-
+// Configurable base URL: check manifest update_url to distinguish packed/store build from unpacked dev mode
+const IS_DEV = !("update_url" in chrome.runtime.getManifest());
+const SAAS_URL = IS_DEV ? "http://localhost:3000" : "https://verihire-jyotidxt.vercel.app";
 
 // SVG Icons as strings for easy injection inside Shadow DOM
 const SHIELD_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-shield"><path d="M20 13c0 5-3.5 7.5-7.66 9.7a1 1 0 0 1-.68 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 .76-.97l8.24-2a1 1 0 0 1 .48 0l8.24 2A1 1 0 0 1 20 6z"/></svg>`;
@@ -335,6 +337,63 @@ const SHADOW_CSS = `
     border-color: rgba(255, 255, 255, 0.2);
   }
 
+  .vh-byok-modal {
+    position: absolute;
+    inset: 0;
+    background: rgba(11, 15, 25, 0.96);
+    backdrop-filter: blur(8px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    z-index: 1000;
+  }
+  .vh-byok-modal-content {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    text-align: center;
+  }
+  .vh-byok-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #f1f5f9;
+  }
+  .vh-byok-desc {
+    font-size: 11px;
+    color: #94a3b8;
+    line-height: 1.4;
+  }
+  .vh-byok-features {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 10px;
+    border-radius: 6px;
+    text-align: left;
+  }
+  .vh-byok-feat-item {
+    font-size: 10px;
+    color: #cbd5e1;
+  }
+  .vh-byok-note {
+    font-size: 10px;
+    color: #64748b;
+  }
+  .vh-byok-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .vh-badge.demo {
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.3);
+  }
+
   .vh-link {
     display: block;
     text-align: center;
@@ -350,23 +409,78 @@ const SHADOW_CSS = `
   }
 `;
 
-// Simple local parser to simulate early data parsing for the drawer UI
-function parseLinkedInPage() {
-  const titleEl = document.querySelector(
-    ".job-details-jobs-unified-top-card__job-title, .jobs-unified-top-card__job-title, h1.t-24"
-  );
-  const companyEl = document.querySelector(
-    ".jobs-unified-top-card__company-name, .job-details-jobs-unified-top-card__company-name"
-  );
-  const locationEl = document.querySelector(
-    ".jobs-unified-top-card__bullet, .jobs-unified-top-card__bullet-point"
-  );
 
-  return {
-    title: titleEl?.textContent?.trim() || "Software Developer",
-    company: companyEl?.textContent?.trim() || "Hiring Company",
-    location: locationEl?.textContent?.trim() || "Remote / Hybrid"
-  };
+
+function calculateDemoConfidence(scraped: any) {
+  let score = 50; // base score
+  const checks: { label: string; value: string; pass: boolean }[] = [];
+
+  // 1. Company detected
+  const hasCompany = scraped.companyName && scraped.companyName !== "Unavailable" && scraped.companyName !== "Hiring Company";
+  score += hasCompany ? 5 : 0;
+  checks.push({ label: "Company Detected", value: hasCompany ? scraped.companyName : "Missing", pass: hasCompany });
+
+  // 2. Job title
+  const hasTitle = scraped.jobTitle && scraped.jobTitle !== "Unavailable" && scraped.jobTitle !== "Software Developer";
+  score += hasTitle ? 5 : 0;
+  checks.push({ label: "Job Title", value: hasTitle ? scraped.jobTitle : "Missing", pass: hasTitle });
+
+  // 3. Location
+  const hasLocation = scraped.jobLocation && scraped.jobLocation !== "Unavailable" && scraped.jobLocation !== "Remote / Hybrid";
+  score += hasLocation ? 5 : 0;
+  checks.push({ label: "Location", value: hasLocation ? scraped.jobLocation : "Missing", pass: hasLocation });
+
+  // 4. Employment Type
+  const hasEmpType = scraped.employmentType && scraped.employmentType !== "Not Specified";
+  score += hasEmpType ? 5 : 0;
+  checks.push({ label: "Employment Type", value: hasEmpType ? scraped.employmentType : "Not Specified", pass: hasEmpType });
+
+  // 5. Skills Detected
+  const skillsCount = scraped.skills ? scraped.skills.filter((s: string) => s !== "Not Specified").length : 0;
+  score += skillsCount > 0 ? Math.min(10, skillsCount * 2) : 0;
+  checks.push({ label: "Skills Count", value: skillsCount > 0 ? `${skillsCount} skills` : "None Detected", pass: skillsCount > 0 });
+
+  // 6. Seniority
+  const hasSeniority = scraped.experienceLevel && scraped.experienceLevel !== "Not Specified";
+  score += hasSeniority ? 5 : 0;
+  checks.push({ label: "Seniority Level", value: hasSeniority ? scraped.experienceLevel : "Not Specified", pass: hasSeniority });
+
+  // 7. Description completeness
+  const descLength = scraped.jobDescription ? scraped.jobDescription.length : 0;
+  const isComplete = descLength > 800;
+  score += descLength > 1500 ? 10 : descLength > 800 ? 5 : 0;
+  checks.push({ label: "Description Length", value: `${descLength} chars`, pass: isComplete });
+
+  // 8. Salary mentioned
+  const descLower = scraped.jobDescription.toLowerCase();
+  const salaryRegex = /(\$|salary|salary range|hourly|compensation|pay rate|\d+\s*k)/i;
+  const hasSalary = salaryRegex.test(descLower);
+  score += hasSalary ? 10 : 0;
+  checks.push({ label: "Salary Details", value: hasSalary ? "Mentioned" : "Not Specified", pass: hasSalary });
+
+  // 9. External website link
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  const urls = scraped.jobDescription.match(urlRegex) || [];
+  const hasUrl = urls.length > 0;
+  score += hasUrl ? 5 : 0;
+  checks.push({ label: "External Website", value: hasUrl ? "Detected" : "Not Detected", pass: hasUrl });
+
+  // 10. Application link
+  const hasAppLink = scraped.jobUrl && scraped.jobUrl.includes("linkedin.com");
+  score += hasAppLink ? 5 : 0;
+  checks.push({ label: "Application Link", value: hasAppLink ? "Detected" : "Not Detected", pass: hasAppLink });
+
+  // 11. Remote/Hybrid/On-site
+  const isRemote = descLower.includes("remote") || scraped.jobLocation.toLowerCase().includes("remote");
+  const isHybrid = descLower.includes("hybrid");
+  const isOnsite = descLower.includes("on-site") || descLower.includes("onsite");
+  const mode = isRemote ? "Remote" : isHybrid ? "Hybrid" : isOnsite ? "On-site" : "Not Specified";
+  score += mode !== "Not Specified" ? 5 : 0;
+  checks.push({ label: "Workplace Mode", value: mode, pass: mode !== "Not Specified" });
+
+  score = Math.min(100, Math.max(10, score));
+
+  return { score, checks };
 }
 
 let shadowRoot: ShadowRoot | null = null;
@@ -427,23 +541,50 @@ function injectFloatingUI() {
         </div>
       </div>
 
-      <!-- Trust Score rating mock card -->
+      <!-- Score card (renamed to Demo Confidence Score by default) -->
       <div class="vh-card">
         <div class="vh-score-container">
           <div class="vh-score-left">
-            <span class="vh-score-title">Calculated Index</span>
-            <span class="vh-score-value" id="vh-score-text">88/100</span>
+            <span class="vh-score-title" id="vh-score-title">Demo Confidence Score</span>
+            <span class="vh-score-value text-amber-500" id="vh-score-text">--/100</span>
+            <span class="vh-score-caption" id="vh-score-caption" style="font-size: 9px; color: #64748b; margin-top: 4px; display: block; line-height: 1.3;">
+              Generated from visible job signals — not AI analysis.
+            </span>
           </div>
-          <span class="vh-badge" id="vh-risk-badge">Low Risk</span>
+          <span class="vh-badge demo" id="vh-risk-badge">🟡 Demo Analysis</span>
         </div>
       </div>
 
-      <!-- AI mock assessment -->
-      <div class="vh-card">
-        <h4 class="vh-subtitle">AI Analysis</h4>
+      <!-- Demo Analysis Panel (checklist of signals) -->
+      <div class="vh-card" id="vh-demo-panel">
+        <h4 class="vh-subtitle">Demo Signal Checklist</h4>
+        <div id="vh-checklist-container" style="display: flex; flex-direction: column; gap: 7px; margin-top: 10px;">
+          <!-- checklist rows injected dynamically -->
+        </div>
+      </div>
+
+      <!-- Real AI Analysis panel (hidden by default) -->
+      <div class="vh-card" id="vh-ai-panel" style="display: none;">
+        <h4 class="vh-subtitle">AI Analysis Insights</h4>
         <p class="vh-explanation" id="vh-explanation-text">
-          Evaluating description and matching corporate entities. Click to trigger detailed scans.
+          Evaluating description and matching corporate entities.
         </p>
+      </div>
+
+      <!-- Unlock Real AI Analysis CTA -->
+      <div class="vh-card" id="vh-ai-upgrade-card" style="border: 1px solid rgba(99, 102, 241, 0.2); background: rgba(99, 102, 241, 0.02); padding: 14px; border-radius: 8px;">
+        <h4 class="vh-subtitle" style="color: #a5b4fc; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+          ✨ Unlock Real AI Analysis
+        </h4>
+        <p style="font-size: 11px; color: #94a3b8; line-height: 1.4; margin: 6px 0 10px 0;">
+          Get personalized AI-powered:<br />
+          • Scam risk detection &nbsp;&nbsp;&nbsp;&nbsp; • Resume matching<br />
+          • Company insights &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; • Career recommendations<br />
+          • Interview preparation &nbsp; • Detailed explanations
+        </p>
+        <button class="vh-btn" id="vh-real-ai-btn" style="width: 100%;">
+          Analyze with Real AI
+        </button>
       </div>
     </div>
 
@@ -452,9 +593,28 @@ function injectFloatingUI() {
       <button class="vh-btn" id="vh-save-btn">Save Job Listing</button>
       <a href="#" target="_blank" class="vh-btn-secondary" id="vh-resume-btn" style="display: none;">Compare Resume</a>
       <a href="#" target="_blank" class="vh-btn-secondary" id="vh-interview-btn" style="display: none;">Prep Interview</a>
-      <a href="http://localhost:3000/dashboard" target="_blank" class="vh-btn-secondary">
+      <a href="${SAAS_URL}/dashboard" target="_blank" class="vh-btn-secondary">
         Open SaaS Portal →
       </a>
+    </div>
+
+    <!-- Connect Your AI Provider Modal -->
+    <div class="vh-byok-modal" id="vh-byok-modal">
+      <div class="vh-byok-modal-content">
+        <span class="vh-byok-title">Connect Your AI Provider</span>
+        <p class="vh-byok-desc">VeriHire respects your privacy and does not provide shared AI API keys. To enable personalized AI analysis, connect your own API provider.</p>
+        <div class="vh-byok-features">
+          <div class="vh-byok-feat-item">✓ Personalized Job Analysis</div>
+          <div class="vh-byok-feat-item">✓ Resume Match</div>
+          <div class="vh-byok-feat-item">✓ AI Interview Preparation</div>
+          <div class="vh-byok-feat-item">✓ Career Coach</div>
+        </div>
+        <p class="vh-byok-note">Supported Providers: OpenAI, Gemini, Claude, Groq, OpenRouter</p>
+        <div class="vh-byok-actions">
+          <a href="${SAAS_URL}/settings/ai-providers" target="_blank" class="vh-btn" style="text-decoration:none; text-align: center;">Configure AI Provider</a>
+          <button class="vh-btn-secondary" id="vh-demo-mode-btn">Continue Using Demo Mode</button>
+        </div>
+      </div>
     </div>
   `;
   shadowRoot.appendChild(drawer);
@@ -608,18 +768,26 @@ function injectFloatingUI() {
   const resumeBtn = drawer.querySelector("#vh-resume-btn") as HTMLAnchorElement | null;
   const interviewBtn = drawer.querySelector("#vh-interview-btn") as HTMLAnchorElement | null;
 
+  const realAiBtn = drawer.querySelector("#vh-real-ai-btn") as HTMLButtonElement | null;
+  const demoPanel = drawer.querySelector("#vh-demo-panel") as HTMLDivElement | null;
+  const aiPanel = drawer.querySelector("#vh-ai-panel") as HTMLDivElement | null;
+  const upgradeCard = drawer.querySelector("#vh-ai-upgrade-card") as HTMLDivElement | null;
+  const scoreTitleEl = drawer.querySelector("#vh-score-title") as HTMLSpanElement | null;
+  const scoreTextEl = drawer.querySelector("#vh-score-text") as HTMLSpanElement | null;
+  const scoreCaptionEl = drawer.querySelector("#vh-score-caption") as HTMLSpanElement | null;
+  const badgeEl = drawer.querySelector("#vh-risk-badge") as HTMLSpanElement | null;
+  const byokModal = drawer.querySelector("#vh-byok-modal") as HTMLDivElement | null;
+  const demoBtn = drawer.querySelector("#vh-demo-mode-btn") as HTMLButtonElement | null;
+
   let activeAnalysisScore = 80;
   let activeAnalysisRisk = "LOW";
 
-  bubble.addEventListener("click", () => {
-    // 1. Scrape real job metadata from active page content
-    const scraped = scrapeJobPage();
-    
-    // 2. Update drawer elements with real scraped details
+  const runAnalysisFetch = (scraped: any, isDemoMode: boolean) => {
     const titleEl = drawer.querySelector("#vh-job-title");
     const companyEl = drawer.querySelector("#vh-company-name");
     const locationEl = drawer.querySelector("#vh-job-location");
     const scoreTextEl = drawer.querySelector("#vh-score-text");
+    const scoreTitleEl = drawer.querySelector("#vh-score-title");
     const badgeEl = drawer.querySelector("#vh-risk-badge");
     const explanationEl = drawer.querySelector("#vh-explanation-text");
 
@@ -639,8 +807,80 @@ function injectFloatingUI() {
     if (explanationEl) {
       explanationEl.textContent = "Connecting to AI analysis engine to calculate safety metrics...";
     }
+    if (scoreTitleEl) {
+      scoreTitleEl.textContent = isDemoMode ? "Demo Confidence Score" : "AI Trust Score";
+    }
+    if (scoreCaptionEl) {
+      scoreCaptionEl.textContent = isDemoMode 
+        ? "Generated from visible job signals — not AI analysis." 
+        : "Calculated securely via connected AI provider.";
+    }
     if (resumeBtn) resumeBtn.style.display = "none";
     if (interviewBtn) interviewBtn.style.display = "none";
+
+    // 3. Trigger real backend AI audit request
+    chrome.runtime.sendMessage(
+      { type: "ANALYZE_JOB_DIRECT", data: scraped, isDemo: isDemoMode },
+      (response) => {
+        if (response && response.success) {
+          const res = response.data;
+          activeAnalysisScore = res.trustScore;
+          activeAnalysisRisk = res.riskLevel || "LOW";
+
+          // Update metrics elements
+          if (scoreTextEl) {
+            scoreTextEl.textContent = `${res.trustScore}/100`;
+            scoreTextEl.className = `vh-score-value ${
+              res.trustScore < 50 ? "high" : res.trustScore < 80 ? "medium" : ""
+            }`;
+          }
+          if (badgeEl) {
+            if (isDemoMode) {
+              badgeEl.textContent = "🟡 Demo Analysis";
+              badgeEl.className = "vh-badge demo";
+            } else {
+              badgeEl.textContent = `${activeAnalysisRisk} RISK`;
+              badgeEl.className = `vh-badge ${
+                activeAnalysisRisk === "HIGH" ? "high" : activeAnalysisRisk === "MEDIUM" ? "medium" : ""
+              }`;
+            }
+          }
+          if (explanationEl) {
+            explanationEl.textContent = res.explanation || "Inspection completed successfully.";
+          }
+
+          // Populate and show the SaaS action buttons with query parameter tags
+          if (resumeBtn) {
+            resumeBtn.href = `${SAAS_URL}/resume?desc=${encodeURIComponent(scraped.jobDescription)}&isDemo=${isDemoMode}`;
+            resumeBtn.style.display = "flex";
+          }
+          if (interviewBtn) {
+            interviewBtn.href = `${SAAS_URL}/interview-prep?title=${encodeURIComponent(scraped.jobTitle)}&company=${encodeURIComponent(scraped.companyName)}&isDemo=${isDemoMode}`;
+            interviewBtn.style.display = "flex";
+          }
+        } else {
+          // If the server triggers a BYOK error block, display the overlay modal
+          if (response && response.code === "BYOK_REQUIRED") {
+            if (byokModal) byokModal.style.display = "flex";
+          } else {
+            if (explanationEl) {
+              explanationEl.textContent = response?.error || "Connection to VeriHire local dev server failed. Please verify the web app is running on port 3000.";
+            }
+            if (badgeEl) {
+              badgeEl.textContent = "OFFLINE";
+              badgeEl.className = "vh-badge high";
+            }
+          }
+        }
+      }
+    );
+  };
+
+  bubble.addEventListener("click", () => {
+    const scraped = scrapeJobPage();
+
+    // Reset modals and overlays
+    if (byokModal) byokModal.style.display = "none";
 
     // Toggle saved button state depending on active job title
     if (saveBtn) {
@@ -656,55 +896,95 @@ function injectFloatingUI() {
       }
     }
 
+    // Update metadata title card
+    const titleEl = drawer.querySelector("#vh-job-title");
+    const companyEl = drawer.querySelector("#vh-company-name");
+    const locationEl = drawer.querySelector("#vh-job-location");
+    if (titleEl) titleEl.textContent = scraped.jobTitle;
+    if (companyEl) companyEl.textContent = scraped.companyName;
+    if (locationEl) locationEl.textContent = scraped.jobLocation;
+
+    // Calculate dynamic Demo Confidence Score & details from parsed job properties
+    const demoData = calculateDemoConfidence(scraped);
+    activeAnalysisScore = demoData.score;
+
+    if (scoreTextEl) {
+      scoreTextEl.textContent = `${demoData.score}/100`;
+      scoreTextEl.className = "vh-score-value text-amber-500";
+    }
+    if (scoreTitleEl) {
+      scoreTitleEl.textContent = "Demo Confidence Score";
+    }
+    if (scoreCaptionEl) {
+      scoreCaptionEl.textContent = "Generated from visible job signals — not AI analysis.";
+      scoreCaptionEl.style.display = "block";
+    }
+    if (badgeEl) {
+      badgeEl.textContent = "🟡 Demo Analysis";
+      badgeEl.className = "vh-badge demo";
+    }
+
+    // Populate checklist DOM structure dynamically
+    const checklistContainer = drawer.querySelector("#vh-checklist-container");
+    if (checklistContainer) {
+      checklistContainer.innerHTML = "";
+      demoData.checks.forEach((chk) => {
+        const row = document.createElement("div");
+        row.style.display = "flex";
+        row.style.alignItems = "center";
+        row.style.justifyContent = "space-between";
+        row.style.fontSize = "11px";
+        row.style.color = "#cbd5e1";
+        row.style.padding = "2px 0";
+
+        const labelSpan = document.createElement("span");
+        labelSpan.textContent = chk.label;
+        labelSpan.style.fontWeight = "600";
+
+        const valSpan = document.createElement("span");
+        valSpan.textContent = chk.value.length > 25 ? chk.value.slice(0, 22) + "..." : chk.value;
+        valSpan.style.color = chk.pass ? "#10b981" : "#ef4444";
+        valSpan.style.fontWeight = "500";
+        valSpan.title = chk.value;
+
+        row.appendChild(labelSpan);
+        row.appendChild(valSpan);
+        checklistContainer.appendChild(row);
+      });
+    }
+
+    // Ensure Demo View panels are reset to active display
+    if (demoPanel) demoPanel.style.display = "block";
+    if (aiPanel) aiPanel.style.display = "none";
+    if (upgradeCard) upgradeCard.style.display = "block";
+    if (resumeBtn) resumeBtn.style.display = "none";
+    if (interviewBtn) interviewBtn.style.display = "none";
+
     // Slide in the side drawer panel immediately
     drawer.classList.add("vh-open");
+  });
 
-    // 3. Trigger real backend AI audit request
-    chrome.runtime.sendMessage(
-      { type: "ANALYZE_JOB_DIRECT", data: scraped },
-      (response) => {
-        if (response && response.success) {
-          const res = response.data;
-          activeAnalysisScore = res.trustScore;
-          activeAnalysisRisk = res.riskLevel || "LOW";
+  realAiBtn?.addEventListener("click", () => {
+    const scraped = scrapeJobPage();
 
-          // Update metrics elements
-          if (scoreTextEl) {
-            scoreTextEl.textContent = `${res.trustScore}/100`;
-            scoreTextEl.className = `vh-score-value ${
-              res.trustScore < 50 ? "high" : res.trustScore < 80 ? "medium" : ""
-            }`;
-          }
-          if (badgeEl) {
-            badgeEl.textContent = `${activeAnalysisRisk} RISK`;
-            badgeEl.className = `vh-badge ${
-              activeAnalysisRisk === "HIGH" ? "high" : activeAnalysisRisk === "MEDIUM" ? "medium" : ""
-            }`;
-          }
-          if (explanationEl) {
-            explanationEl.textContent = res.explanation || "Inspection completed successfully.";
-          }
+    // Check if the user has an AI provider configured in Postgres via background messages
+    chrome.runtime.sendMessage({ type: "CHECK_AI_KEY_CONFIGURED" }, (response) => {
+      if (response && response.configured) {
+        // Upgrade display panels to real AI
+        if (demoPanel) demoPanel.style.display = "none";
+        if (upgradeCard) upgradeCard.style.display = "none";
+        if (aiPanel) aiPanel.style.display = "block";
 
-          // Populate and show the SaaS action buttons with query parameter tags
-          if (resumeBtn) {
-            resumeBtn.href = `http://localhost:3000/resume?desc=${encodeURIComponent(scraped.jobDescription)}`;
-            resumeBtn.style.display = "flex";
-          }
-          if (interviewBtn) {
-            interviewBtn.href = `http://localhost:3000/interview-prep?title=${encodeURIComponent(scraped.jobTitle)}&company=${encodeURIComponent(scraped.companyName)}`;
-            interviewBtn.style.display = "flex";
-          }
-        } else {
-          if (explanationEl) {
-            explanationEl.textContent = response?.error || "Connection to VeriHire local dev server failed. Please verify the web app is running on port 3000.";
-          }
-          if (badgeEl) {
-            badgeEl.textContent = "OFFLINE";
-            badgeEl.className = "vh-badge high";
-          }
-        }
+        runAnalysisFetch(scraped, false);
+      } else {
+        // Prompt Connect AI Provider modal overlay
+        if (byokModal) byokModal.style.display = "flex";
       }
-    );
+    });
+  });
+
+  demoBtn?.addEventListener("click", () => {
+    if (byokModal) byokModal.style.display = "none";
   });
 
   closeBtn?.addEventListener("click", () => {
@@ -794,3 +1074,4 @@ mutationObserver.observe(document.body, { childList: true, subtree: true });
 // Run initial evaluation on load
 handlePageUpdates();
 
+export {};

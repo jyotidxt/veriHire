@@ -93,17 +93,17 @@ export default function DashboardPage() {
               <div className="absolute top-0 right-0 w-48 h-48 bg-brand-violet/10 rounded-full blur-3xl pointer-events-none" />
               <div>
                 <h3 className="text-base font-bold text-slate-800 dark:text-slate-200">Welcome to VeriHire! Let's get you set up</h3>
-                <p className="text-xs text-slate-500 mt-1">Complete this 5-step checklist to configure the browser validator and start tracking verified applications.</p>
+                <p className="text-xs text-slate-500 mt-1">Complete this onboarding checklist to configure the browser validator and start tracking verified applications.</p>
               </div>
 
               {/* Progress Bar */}
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-semibold">
                   <span className="text-brand-violet">Onboarding Progress</span>
-                  <span>20% Completed</span>
+                  <span>16% Completed</span>
                 </div>
                 <div className="w-full h-2 bg-slate-200 dark:bg-slate-800/80 rounded-full overflow-hidden">
-                  <div className="h-full bg-brand-violet w-[20%] transition-all" />
+                  <div className="h-full bg-brand-violet w-[16%] transition-all" />
                 </div>
               </div>
 
@@ -132,24 +132,37 @@ export default function DashboardPage() {
 
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-100/40 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
                   <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 shrink-0 mt-0.5 text-xs font-bold">3</div>
-                  <div>
-                    <h4 className="text-xs font-bold text-slate-400">3. Pin the Extension</h4>
-                    <p className="text-[10px] text-slate-500 mt-0.5">Pin the VeriHire AI validator badge to your Chrome browser toolbar.</p>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs font-bold text-slate-850 dark:text-slate-250">3. Connect AI Provider (Optional)</h4>
+                    <p className="text-[10px] text-slate-500 mt-0.5">VeriHire works in Demo Mode, but connecting unlocks full AI-powered features.</p>
+                    <a href="/settings/ai-providers" className="inline-block mt-2">
+                      <button className="bg-slate-200 hover:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-[9px] font-semibold px-2.5 py-1 rounded border border-slate-300 dark:border-slate-700">
+                        Setup Keys
+                      </button>
+                    </a>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-100/40 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
                   <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 shrink-0 mt-0.5 text-xs font-bold">4</div>
                   <div>
-                    <h4 className="text-xs font-bold text-slate-400">4. Login inside Toolbar</h4>
+                    <h4 className="text-xs font-bold text-slate-400">4. Pin the Extension</h4>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Pin the VeriHire AI validator badge to your Chrome browser toolbar.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-100/40 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800">
+                  <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 shrink-0 mt-0.5 text-xs font-bold">5</div>
+                  <div>
+                    <h4 className="text-xs font-bold text-slate-400">5. Login inside Toolbar</h4>
                     <p className="text-[10px] text-slate-500 mt-0.5">Open the extension popup in your browser toolbar while logged in here to auto-sync.</p>
                   </div>
                 </div>
 
                 <div className="flex items-start gap-3 p-3 rounded-lg bg-slate-100/40 dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800 md:col-span-2">
-                  <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 shrink-0 mt-0.5 text-xs font-bold">5</div>
+                  <div className="w-5 h-5 rounded-full bg-slate-200 dark:bg-slate-800 border border-slate-300 dark:border-slate-700 flex items-center justify-center text-slate-400 shrink-0 mt-0.5 text-xs font-bold">6</div>
                   <div>
-                    <h4 className="text-xs font-bold text-slate-400">5. Visit LinkedIn & Analyze First Job</h4>
+                    <h4 className="text-xs font-bold text-slate-400">6. Visit LinkedIn & Analyze First Job</h4>
                     <p className="text-[10px] text-slate-500 mt-0.5">Browse jobs on LinkedIn and click our floating check bubble. Your evaluations will auto-sync!</p>
                   </div>
                 </div>

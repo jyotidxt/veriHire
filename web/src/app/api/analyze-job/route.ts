@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
+import { decrypt } from "@/lib/encryption";
 
-// Local heuristic analyzer fallback if OpenAI is unreachable or key is missing
+// Local heuristic analyzer if in Demo Mode
 function evaluateHeuristically(
   jobTitle: string,
   companyName: string,
@@ -54,7 +55,7 @@ function evaluateHeuristically(
         email.includes("@yahoo.com") ||
         email.includes("@outlook.com") ||
         email.includes("@hotmail.com")
-    );
+      );
     if (genericEmailFound) {
       concerns.push({
         category: "Generic Email Contact",
@@ -104,7 +105,7 @@ function evaluateHeuristically(
     signals,
     concerns,
     recommendation,
-    explanation: `Heuristic evaluation of listing shows a ${riskLevel.toLowerCase()} safety concern. ${
+    explanation: `Demo Analysis (Heuristic Evaluation): Verified ${riskLevel.toLowerCase()} safety concern. ${
       concerns.length > 0 ? `${concerns.length} indicators flagged.` : "No significant warning markers located."
     }`
   };
@@ -112,7 +113,6 @@ function evaluateHeuristically(
 
 export async function POST(req: NextRequest) {
   try {
-    // 1. Parse JSON body
     let body;
     try {
       body = await req.json();
@@ -128,14 +128,14 @@ export async function POST(req: NextRequest) {
     const jobDescription = body.jobDescription || body.description;
     const jobLocation = body.jobLocation || body.location;
     const jobUrl = body.jobUrl || body.url;
+    const isDemo = body.isDemo === true;
 
-    // 2. Input Validation
+    // Input Validation
     const validationErrors: string[] = [];
-    if (!jobTitle || typeof jobTitle !== "string") validationErrors.push("Job Title must be a non-empty string.");
-    if (!companyName || typeof companyName !== "string") validationErrors.push("Company Name must be a non-empty string.");
-    if (!jobDescription || typeof jobDescription !== "string") validationErrors.push("Job Description must be a non-empty string.");
-    if (!jobLocation || typeof jobLocation !== "string") validationErrors.push("Location must be a non-empty string.");
-    if (!jobUrl || typeof jobUrl !== "string") validationErrors.push("Job URL must be a valid string.");
+    if (!jobTitle) validationErrors.push("Job Title must be a non-empty string.");
+    if (!companyName) validationErrors.push("Company Name must be a non-empty string.");
+    if (!jobDescription) validationErrors.push("Job Description must be a non-empty string.");
+    if (!jobLocation) validationErrors.push("Location must be a non-empty string.");
 
     if (validationErrors.length > 0) {
       return NextResponse.json(
@@ -144,100 +144,194 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    let analysisResult;
+    // Determine the active authenticated user
+    let activeUserId = req.headers.get("x-user-id") || "system_default_user";
+    let activeUserEmail = req.headers.get("x-user-email") || "user@verihire.app";
+    let activeUserName = req.headers.get("x-user-name") || "Active User";
 
-    // 3. Connect to OpenAI (with heuristic fallback)
-    const apiKey = process.env.OPENAI_API_KEY;
-    const isKeyConfigured = apiKey && !apiKey.includes("placeholder");
-
-    if (isKeyConfigured) {
-      try {
-        console.log("VeriHire API: Triggering OpenAI AI analysis completion.");
-        
-        const systemPrompt = `You are a highly analytical risk assessment AI specializing in employment verification and job search safety.
-Your task is to analyze the provided job details (title, company, description, location, URL) and extract safety indices.
-
-CRITICAL RULES:
-- Never label a job as "Fake" or "Fraudulent" directly, to avoid liability. Instead, use probability-based language (e.g. "atypical communication channels", "atypical payment structures", "potential identification harvest risks").
-- Return a structured JSON object containing exactly the following keys:
-  - "trustScore": a number between 0 and 100 representing the posting reliability.
-  - "riskLevel": "LOW", "MEDIUM", or "HIGH" depending on trust score (LOW: 80-100, MEDIUM: 50-79, HIGH: 0-49).
-  - "signals": array of positive/verified signals. Each signal must be an object with keys: "name" (string), "description" (string), "verified" (boolean).
-  - "concerns": array of suspicious indicators or risks. Each concern must be an object with keys: "category" (string), "description" (string), "severity" ("LOW" | "MEDIUM" | "HIGH").
-  - "recommendation": array of strings listing safety guidelines.
-  - "explanation": a concise string explaining the overall assessment.`;
-
-        const userContent = `Job Title: ${jobTitle}
-Company: ${companyName}
-Location: ${jobLocation}
-URL: ${jobUrl}
-Description:
-${jobDescription}`;
-
-        const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${apiKey}`
-          },
-          body: JSON.stringify({
-            model: "gpt-4o-mini",
-            response_format: { type: "json_object" },
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userContent }
-            ],
-            temperature: 0.1
-          })
-        });
-
-        if (openAiResponse.ok) {
-          const completionJson = await openAiResponse.json();
-          const parsedContent = JSON.parse(completionJson.choices[0].message.content);
-          
-          // Verify returned keys exist
-          if (
-            typeof parsedContent.trustScore === "number" &&
-            parsedContent.riskLevel &&
-            Array.isArray(parsedContent.signals) &&
-            Array.isArray(parsedContent.concerns) &&
-            Array.isArray(parsedContent.recommendation)
-          ) {
-            analysisResult = parsedContent;
-            console.log("VeriHire API: OpenAI AI analysis succeeded.");
-          }
-        } else {
-          console.warn("VeriHire API: OpenAI completion endpoint returned error status:", openAiResponse.status);
-        }
-      } catch (aiErr) {
-        console.error("VeriHire API: Error during OpenAI request completion:", aiErr);
+    try {
+      const authSession = auth();
+      if (authSession && authSession.userId) {
+        activeUserId = authSession.userId;
       }
-    } else {
-      console.log("VeriHire API: OpenAI API key placeholder/missing. Using Heuristics engine fallback.");
+    } catch (authErr) {}
+
+    // Check if user has configured custom API credentials
+    const config = await prisma.aIConfig.findUnique({
+      where: { userId: activeUserId }
+    });
+
+    let activeKey = "";
+    let activeProvider = config?.activeProvider || "OPENAI";
+
+    if (config) {
+      if (activeProvider === "OPENAI") activeKey = decrypt(config.openaiKey || "");
+      else if (activeProvider === "GEMINI") activeKey = decrypt(config.geminiKey || "");
+      else if (activeProvider === "ANTHROPIC") activeKey = decrypt(config.anthropicKey || "");
+      else if (activeProvider === "GROQ") activeKey = decrypt(config.groqKey || "");
+      else if (activeProvider === "OPENROUTER") activeKey = decrypt(config.openrouterKey || "");
     }
 
-    // Fallback to local evaluation if OpenAI fails or key is missing
+    // Check if a global premium env key exists as fallback
+    if (!activeKey) {
+      const envKey = process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY;
+      if (envKey && !envKey.includes("placeholder")) {
+        activeKey = envKey;
+        activeProvider = process.env.GEMINI_API_KEY ? "GEMINI" : "OPENAI";
+      }
+    }
+
+    // If no credentials configured and not in Demo Mode, trigger BYOK modal
+    if (!activeKey && !isDemo) {
+      return NextResponse.json(
+        {
+          success: false,
+          code: "BYOK_REQUIRED",
+          error: "Real AI analysis is currently unavailable because no AI provider has been connected."
+        },
+        { status: 400 }
+      );
+    }
+
+    let analysisResult;
+
+    if (isDemo || !activeKey) {
+      // Execute heuristic evaluation with explicit Demo Analysis tags
+      analysisResult = evaluateHeuristically(jobTitle, companyName, jobDescription, jobLocation, jobUrl);
+    } else {
+      // Connect to the configured AI API
+      try {
+        if (activeProvider === "OPENAI") {
+          const systemPrompt = `You are a risk assessment AI specializing in job search safety. Analyze the provided job details and return a structured JSON object containing:
+          - "trustScore": number (0-100)
+          - "riskLevel": "LOW" | "MEDIUM" | "HIGH"
+          - "signals": array of objects with keys: "name" (string), "description" (string), "verified" (boolean)
+          - "concerns": array of objects with keys: "category" (string), "description" (string), "severity" ("LOW" | "MEDIUM" | "HIGH")
+          - "recommendation": array of strings
+          - "explanation": string`;
+
+          const openAiResponse = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${activeKey}`
+            },
+            body: JSON.stringify({
+              model: "gpt-4o-mini",
+              response_format: { type: "json_object" },
+              messages: [
+                { role: "system", content: systemPrompt },
+                { role: "user", content: `Job Title: ${jobTitle}\nCompany: ${companyName}\nLocation: ${jobLocation}\nDescription: ${jobDescription}` }
+              ],
+              temperature: 0.1
+            })
+          });
+
+          if (openAiResponse.ok) {
+            const completionJson = await openAiResponse.json();
+            analysisResult = JSON.parse(completionJson.choices[0].message.content);
+          } else {
+            throw new Error(`OpenAI API error code: ${openAiResponse.status}`);
+          }
+        } else if (activeProvider === "GEMINI") {
+          const systemPrompt = `You are a job safety auditor. Analyze the job details and return a structured JSON object with keys: trustScore (number), riskLevel ("LOW" | "MEDIUM" | "HIGH"), signals (array with name, description, verified), concerns (array with category, description, severity), recommendation (array of strings), explanation (string).`;
+          const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${activeKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              contents: [{ parts: [{ text: `${systemPrompt}\n\nJob details:\nTitle: ${jobTitle}\nCompany: ${companyName}\nLocation: ${jobLocation}\nDescription: ${jobDescription}` }] }],
+              generationConfig: { responseMimeType: "application/json" }
+            })
+          });
+
+          if (res.ok) {
+            const completionJson = await res.json();
+            const text = completionJson.candidates[0].content.parts[0].text;
+            analysisResult = JSON.parse(text);
+          } else {
+            throw new Error(`Gemini API error code: ${res.status}`);
+          }
+        } else if (activeProvider === "GROQ") {
+          const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${activeKey}`
+            },
+            body: JSON.stringify({
+              model: "llama-3.1-8b-instant",
+              response_format: { type: "json_object" },
+              messages: [
+                { role: "system", content: "You are a job safety auditor. Return a JSON object with keys: trustScore, riskLevel, signals, concerns, recommendation, explanation." },
+                { role: "user", content: `Job: ${jobTitle} at ${companyName}. Description: ${jobDescription}` }
+              ]
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            analysisResult = JSON.parse(data.choices[0].message.content);
+          } else {
+            throw new Error(`Groq API error code: ${res.status}`);
+          }
+        } else if (activeProvider === "OPENROUTER") {
+          const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${activeKey}`
+            },
+            body: JSON.stringify({
+              model: "google/gemini-flash-1.5",
+              response_format: { type: "json_object" },
+              messages: [
+                { role: "system", content: "You are a job safety auditor. Return JSON containing keys: trustScore, riskLevel, signals, concerns, recommendation, explanation." },
+                { role: "user", content: `Job: ${jobTitle} at ${companyName}. Description: ${jobDescription}` }
+              ]
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            analysisResult = JSON.parse(data.choices[0].message.content);
+          } else {
+            throw new Error(`OpenRouter API error code: ${res.status}`);
+          }
+        } else if (activeProvider === "ANTHROPIC") {
+          const res = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: {
+              "x-api-key": activeKey,
+              "anthropic-version": "2023-06-01",
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              model: "claude-3-5-sonnet-20241022",
+              max_tokens: 1500,
+              messages: [{ role: "user", content: `Analyze this job listing. Return ONLY a valid JSON object with fields: trustScore (number), riskLevel, signals, concerns, recommendation, explanation. Job Title: ${jobTitle}, Company: ${companyName}, Description: ${jobDescription}` }]
+            })
+          });
+
+          if (res.ok) {
+            const data = await res.json();
+            const text = data.content[0].text;
+            analysisResult = JSON.parse(text);
+          } else {
+            throw new Error(`Anthropic API error code: ${res.status}`);
+          }
+        }
+      } catch (err) {
+        console.warn("AI Config analysis failed. Running heuristic fallback.", err);
+        analysisResult = evaluateHeuristically(jobTitle, companyName, jobDescription, jobLocation, jobUrl);
+      }
+    }
+
     if (!analysisResult) {
       analysisResult = evaluateHeuristically(jobTitle, companyName, jobDescription, jobLocation, jobUrl);
     }
 
-    // 4. Log to Database (wrapped in try-catch fallback)
+    // Save scan analysis record to PostgreSQL
     try {
-      let activeUserId = req.headers.get("x-user-id") || "system_default_user";
-      let activeUserEmail = req.headers.get("x-user-email") || "system@verihire.app";
-      let activeUserName = req.headers.get("x-user-name") || "System Default";
-
-      try {
-        const authSession = auth();
-        if (authSession && authSession.userId) {
-          activeUserId = authSession.userId;
-          activeUserEmail = "user@verihire.app";
-          activeUserName = "Active User";
-        }
-      } catch (authErr) {
-        // No Clerk context in direct API REST calls
-      }
-
       await prisma.user.upsert({
         where: { id: activeUserId },
         update: {},
@@ -255,44 +349,42 @@ ${jobDescription}`;
           companyName,
           jobLocation,
           jobDescription,
-          companyUrl: jobUrl,
+          companyUrl: jobUrl || "",
           trustScore: analysisResult.trustScore,
           riskLevel: analysisResult.riskLevel as any,
           aiExplanation: analysisResult.explanation || "",
-          safetyRecs: analysisResult.recommendation,
+          safetyRecs: analysisResult.recommendation || [],
           userId: activeUserId,
           indicators: {
-            create: analysisResult.concerns.map((c: any) => ({
-              category: c.category || c.name || "Risk Warning",
+            create: (analysisResult.concerns || []).map((c: any) => ({
+              category: c.category || "Risk",
               description: c.description || "",
               severity: c.severity || "MEDIUM"
             }))
           },
           verifications: {
-            create: analysisResult.signals.map((s: any) => ({
-              signalName: s.name || s.signalName || "Verification Signal",
+            create: (analysisResult.signals || []).map((s: any) => ({
+              signalName: s.name || "Signal",
               description: s.description || "",
-              isVerified: s.verified ?? s.isVerified ?? true
+              isVerified: s.verified ?? true
             }))
           }
         }
       });
-      console.log("VeriHire API: Saved analysis to PostgreSQL successfully.");
     } catch (dbError) {
-      console.warn("VeriHire API: Database write skipped.", dbError);
+      console.warn("Database log skipped.", dbError);
     }
 
-    // 5. Return structured analysis result
     return NextResponse.json({
       trustScore: analysisResult.trustScore,
       riskLevel: analysisResult.riskLevel,
-      signals: analysisResult.signals,
-      concerns: analysisResult.concerns,
-      recommendation: analysisResult.recommendation,
+      signals: analysisResult.signals || [],
+      concerns: analysisResult.concerns || [],
+      recommendation: analysisResult.recommendation || [],
       explanation: analysisResult.explanation || ""
     });
   } catch (error: any) {
-    console.error("VeriHire API server error:", error);
+    console.error("VeriHire API error:", error);
     return NextResponse.json(
       { success: false, error: "Internal Server Error", details: error.message || "" },
       { status: 500 }
