@@ -148,6 +148,105 @@ export default function LandingPage() {
           </Card>
         </div>
       </main>
+
+      {/* Footer Section */}
+      <footer className="relative z-10 border-t border-slate-200 dark:border-slate-800 bg-white/40 dark:bg-[#0B0F19]/40 backdrop-blur-md transition-colors py-12 mt-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 pb-8 border-b border-slate-200 dark:border-slate-800/60">
+            {/* Brand Logo & Info */}
+            <div className="space-y-4 md:col-span-1">
+              <div className="flex items-center gap-2 font-bold text-base text-slate-900 dark:text-white">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center border border-emerald-500/30">
+                  <Shield className="w-4 h-4 text-emerald-500" />
+                </div>
+                <span>VeriHire</span>
+              </div>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Empowering job seekers with AI-driven safety audits. Navigate your job hunt securely on LinkedIn and beyond.
+              </p>
+            </div>
+
+            {/* Col 1: Platform */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Platform</h4>
+              <ul className="space-y-2 text-xs text-slate-500">
+                <li>
+                  <Link href="/dashboard" className="hover:text-slate-800 dark:hover:text-white transition-colors">
+                    Dashboard Overview
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/resume" className="hover:text-slate-800 dark:hover:text-white transition-colors">
+                    Resume Matcher
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/interview-prep" className="hover:text-slate-800 dark:hover:text-white transition-colors">
+                    Interview Coach
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/saved-jobs" className="hover:text-slate-800 dark:hover:text-white transition-colors">
+                    Application Tracker
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            {/* Col 2: Chrome Extension */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Chrome Extension</h4>
+              <ul className="space-y-2 text-xs text-slate-500">
+                <li>
+                  <a href="#" className="hover:text-slate-800 dark:hover:text-white transition-colors">
+                    Install Extension
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-slate-800 dark:hover:text-white transition-colors">
+                    Chrome Web Store
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-slate-800 dark:hover:text-white transition-colors">
+                    How it Works
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            {/* Col 3: Legal & Security */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">Security & Legal</h4>
+              <ul className="space-y-2 text-xs text-slate-500">
+                <li>
+                  <a href="#" className="hover:text-slate-800 dark:hover:text-white transition-colors">
+                    Privacy Policy
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-slate-800 dark:hover:text-white transition-colors">
+                    Terms of Service
+                  </a>
+                </li>
+                <li>
+                  <a href="#" className="hover:text-slate-800 dark:hover:text-white transition-colors">
+                    Liability Disclaimer
+                  </a>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+            <span>&copy; 2026 VeriHire. All rights reserved.</span>
+            <div className="flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-brand-violet" />
+              <span>Powered by OpenAI Secure Intelligence Engine. No credentials logged.</span>
+            </div>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 }
