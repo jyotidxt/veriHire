@@ -29,6 +29,64 @@ Users can save jobs, manage applications, compare resumes, prepare for interview
 
 ---
 
+
+# 📸 Project Showcase
+
+Experience VeriHire through its modern Chrome Extension and Full Stack SaaS dashboard.
+
+---
+
+## 🏠 AI Career Dashboard
+
+A personalized dashboard where users can manage their complete job search journey, including saved jobs, application tracking, analytics, resume intelligence, interview preparation, and AI-powered career tools.
+
+<p align="center">
+  <img src="docs/screenshots/extension-SaaSDash.png" alt="VeriHire Dashboard" width="100%">
+</p>
+
+---
+
+## 🧩 Chrome Extension
+
+VeriHire integrates directly into LinkedIn Jobs with a floating **Analyze Job** button, allowing users to review opportunities without leaving the page.
+
+<p align="center">
+  <img src="docs\screenshots\extension-button.jpeg" alt="VeriHire Chrome Extension" width="100%">
+</p>
+
+---
+
+## 🤖 AI Job Analysis
+
+Clicking the floating VeriHire button opens an intelligent side panel that extracts job information and provides Demo Analysis or Real AI Analysis (when an AI provider is configured).
+
+<p align="center">
+  <img src="docs\screenshots\extension-jobAnalysis.jpeg" alt="AI Job Analysis" width="100%">
+</p>
+
+---
+
+> 🚀 More screenshots, walkthrough GIFs, and feature demonstrations will be added as VeriHire continues to evolve.
+
+
+---
+
+# 🎥 Demo
+
+Coming Soon
+
+The demo will showcase:
+
+* Chrome Extension installation
+* LinkedIn job detection
+* Demo Analysis
+* Real AI Analysis
+* Resume Matching
+* Interview Preparation
+* Dashboard workflow
+
+---
+
 # ✨ Key Features
 
 ## 🧩 AI Chrome Extension
@@ -168,62 +226,6 @@ Supported providers include:
 
 ---
 
-# 📸 Project Showcase
-
-Experience VeriHire through its modern Chrome Extension and Full Stack SaaS dashboard.
-
----
-
-## 🏠 AI Career Dashboard
-
-A personalized dashboard where users can manage their complete job search journey, including saved jobs, application tracking, analytics, resume intelligence, interview preparation, and AI-powered career tools.
-
-<p align="center">
-  <img src="docs/screenshots/extension-SaaSDash.png" alt="VeriHire Dashboard" width="100%">
-</p>
-
----
-
-## 🧩 Chrome Extension
-
-VeriHire integrates directly into LinkedIn Jobs with a floating **Analyze Job** button, allowing users to review opportunities without leaving the page.
-
-<p align="center">
-  <img src="docs\screenshots\extension-button.jpeg" alt="VeriHire Chrome Extension" width="100%">
-</p>
-
----
-
-## 🤖 AI Job Analysis
-
-Clicking the floating VeriHire button opens an intelligent side panel that extracts job information and provides Demo Analysis or Real AI Analysis (when an AI provider is configured).
-
-<p align="center">
-  <img src="docs\screenshots\extension-jobAnalysis.jpeg" alt="AI Job Analysis" width="100%">
-</p>
-
----
-
-> 🚀 More screenshots, walkthrough GIFs, and feature demonstrations will be added as VeriHire continues to evolve.
-
-
----
-
-# 🎥 Demo
-
-Coming Soon
-
-The demo will showcase:
-
-* Chrome Extension installation
-* LinkedIn job detection
-* Demo Analysis
-* Real AI Analysis
-* Resume Matching
-* Interview Preparation
-* Dashboard workflow
-
----
 
 # 🛠️ Tech Stack
 
