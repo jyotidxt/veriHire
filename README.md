@@ -184,22 +184,51 @@ A personalized dashboard where users can manage their complete job search journe
 
 ---
 
-## 🧩 Chrome Extension
+## 🧩 Chrome Extension 2 Ways
+
+### 🚀 1. Floating Button AI Analyzer
 
 VeriHire integrates directly into LinkedIn Jobs with a floating **Analyze Job** button, allowing users to review opportunities without leaving the page.
 
+## 🔍 Floating Button
 <p align="center">
   <img src="docs\screenshots\extension-button.jpeg" alt="VeriHire Chrome Extension" width="100%">
 </p>
 
 ---
 
-## 🤖 AI Job Analysis
+## 📈 Floating Button AI Job Analysis
 
 Clicking the floating VeriHire button opens an intelligent side panel that extracts job information and provides Demo Analysis or Real AI Analysis (when an AI provider is configured).
+<p align="center">
+  <img src="docs\screenshots\extension-jobAnalysis.jpeg" alt="Extension Access" width="100%">
+</p>
+---
+
+### 🚀 2. Quick Analysis from the Chrome Toolbar and its Popup
+
+## 🧭 Extension Access
+ Access the verHire chrome extension form chrome toolbar
+<p align="center">
+  <img src="docs\screenshots\extension-name.png" alt="Extension Access" width="100%">
+</p>
+
+---
+
+## ⚡ 2. Extension Popup
+
+Clicking the VeriHire toolbar extension popup where user can click on analyze button and analyze linkedin job.
 
 <p align="center">
-  <img src="docs\screenshots\extension-jobAnalysis.jpeg" alt="AI Job Analysis" width="100%">
+  <img src="docs\screenshots\extension-popup.png" width="900">
+</p>
+
+---
+
+## 📊 Extension Job Analysis
+
+<p align="center">
+  <img src="docs\screenshots\extension-popupJobAnalysis.png" width="900">
 </p>
 
 ---
