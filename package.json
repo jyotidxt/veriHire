@@ -6,6 +6,7 @@
     "extension"
   ],
   "scripts": {
+    "build": "npm run build -w web",
     "dev:web": "npm run dev -w web",
     "dev:ext": "npm run dev -w extension",
     "build:web": "npm run build -w web",

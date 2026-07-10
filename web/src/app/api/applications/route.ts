@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 
+export const dynamic = "force-dynamic";
+
 // GET: Query all tracked job applications
 export async function GET(req: NextRequest) {
   try {

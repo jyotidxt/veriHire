@@ -290,7 +290,7 @@ utils/
 Clone the repository
 
 ```bash
-git clone https://github.com/jyotidxt/verihire.git
+git clone https://github.com/jyotidxt/veriHire.git
 ```
 
 Install dependencies

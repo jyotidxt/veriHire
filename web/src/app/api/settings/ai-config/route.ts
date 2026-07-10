@@ -3,6 +3,8 @@ import { auth } from "@clerk/nextjs/server";
 import prisma from "@/lib/prisma";
 import { encrypt, decrypt, maskApiKey } from "@/lib/encryption";
 
+export const dynamic = "force-dynamic";
+
 // Helper to determine the authenticated user ID
 function getAuthenticatedUserId(req: NextRequest) {
   let userId = req.headers.get("x-user-id") || "system_default_user";
